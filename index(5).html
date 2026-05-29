@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RG Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #111318;
+      --surface2: #181c24;
+      --border: #252a35;
+      --accent: #e8522a;
+      --accent2: #f0832a;
+      --text: #e8ecf4;
+      --muted: #6b7485;
+      --success: #2ecc71;
+      --warn: #f1c40f;
+      --blue: #3b9ef5;
+      --red: #e74c3c;
+      --gray: #8e9ab5;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,82,42,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,82,42,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* PAGES */
+    .page { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity .5s, transform .5s; }
+    .page.hidden { opacity: 0; pointer-events: none; transform: translateY(20px); }
+
+    /* PASSWORD */
+    #page-password { flex-direction: column; gap: 2rem; padding: 2rem; }
+    .logo-block { text-align: center; }
+    .logo-block .brand {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, #ffd060 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo-block .sub { font-size: .8rem; letter-spacing: .35em; text-transform: uppercase; color: var(--muted); margin-top: .4rem; }
+    .speed-lines { display: flex; gap: 6px; justify-content: center; margin: .8rem 0; }
+    .speed-lines span { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .6; }
+    .speed-lines span:nth-child(1) { width: 16px; }
+    .speed-lines span:nth-child(2) { width: 40px; }
+    .speed-lines span:nth-child(3) { width: 80px; opacity: 1; }
+    .speed-lines span:nth-child(4) { width: 40px; }
+    .speed-lines span:nth-child(5) { width: 16px; }
+    .pw-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.4rem 2.8rem;
+      width: min(400px, 100%);
+      box-shadow: 0 0 60px rgba(232,82,42,.08), 0 2px 0 rgba(255,255,255,.04) inset;
+    }
+    .pw-card h2 { font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.4rem; text-align: center; }
+    .input-group { position: relative; margin-bottom: 1rem; }
+    .input-group input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .85rem 1.1rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1rem;
+      letter-spacing: .08em;
+      outline: none;
+      transition: border-color .25s, box-shadow .25s;
+    }
+    .input-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,82,42,.15); }
+    .input-group input.error { border-color: var(--red); box-shadow: 0 0 0 3px rgba(231,76,60,.15); animation: shake .35s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+    .err-msg { color: var(--red); font-size: .78rem; letter-spacing: .05em; margin-top: .4rem; opacity: 0; transition: opacity .25s; }
+    .err-msg.show { opacity: 1; }
+    .btn {
+      width: 100%;
+      padding: .9rem;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      transition: filter .2s, transform .15s;
+      box-shadow: 0 4px 24px rgba(232,82,42,.3);
+    }
+    .btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px); }
+
+    /* SELECT */
+    #page-select { flex-direction: column; gap: 3rem; padding: 2rem; }
+    .select-title { text-align: center; }
+    .select-title h1 { font-family: 'Rajdhani', sans-serif; font-size: clamp(1.6rem,4vw,2.6rem); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .select-title p { color: var(--muted); font-size: .85rem; letter-spacing: .08em; margin-top: .4rem; }
+    .game-cards { display: flex; gap: 1.6rem; flex-wrap: wrap; justify-content: center; }
+    .game-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.4rem 3rem;
+      width: 220px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .25s, transform .25s, box-shadow .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .game-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(232,82,42,.07) 0%, transparent 60%); opacity: 0; transition: opacity .25s; }
+    .game-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(232,82,42,.18); }
+    .game-card:hover::before { opacity: 1; }
+    .game-card .icon { font-size: 2.8rem; margin-bottom: 1rem; display: block; }
+    .game-card .name { font-family: 'Rajdhani', sans-serif; font-size: 1.3rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .game-card .desc { color: var(--muted); font-size: .75rem; margin-top: .4rem; letter-spacing: .04em; }
+    .game-card .badge { margin-top: .8rem; display: inline-block; font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: .25rem .7rem; border-radius: 20px; background: rgba(232,82,42,.15); color: var(--accent2); border: 1px solid rgba(232,82,42,.3); }
+    .game-card.gpro .badge { background: rgba(59,158,245,.12); color: var(--blue); border-color: rgba(59,158,245,.3); }
+
+    /* APP */
+    #page-app { position: fixed; inset: 0; display: flex; flex-direction: column; z-index: 10; transition: opacity .5s, transform .5s; }
+    #page-app.hidden { opacity: 0; pointer-events: none; transform: translateY(20px); }
+    .topbar { display: flex; align-items: center; gap: 1rem; padding: .75rem 1.6rem; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .topbar .back-btn { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: .4rem .8rem; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; transition: color .2s, border-color .2s; }
+    .topbar .back-btn:hover { color: var(--text); border-color: var(--accent); }
+    .topbar .game-label { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.1rem; letter-spacing: .15em; text-transform: uppercase; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .topbar .sep { color: var(--border); }
+    .topbar .tool-label { color: var(--muted); font-size: .85rem; letter-spacing: .06em; }
+    .app-layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.2rem .8rem; flex-shrink: 0; overflow-y: auto; }
+    .sidebar-section { margin-bottom: 1.4rem; }
+    .sidebar-section-title { font-size: .65rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); padding: 0 .6rem; margin-bottom: .5rem; }
+    .sidebar-item { display: flex; align-items: center; gap: .7rem; padding: .65rem .8rem; border-radius: 10px; cursor: pointer; font-size: .88rem; color: var(--muted); transition: background .2s, color .2s; border: 1px solid transparent; }
+    .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-item.active { background: rgba(232,82,42,.1); color: var(--accent2); border-color: rgba(232,82,42,.2); }
+    .sidebar-item .s-icon { font-size: 1rem; }
+    .coming-soon { font-size: .65rem; letter-spacing: .12em; background: rgba(107,116,133,.12); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: .15rem .5rem; margin-left: auto; }
+    .app-content { flex: 1; overflow-y: auto; padding: 2rem; }
+
+    /* TOOL PANEL */
+    .tool-panel { max-width: 900px; margin: 0 auto; }
+    .tool-header { margin-bottom: 2rem; }
+    .tool-header h2 { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: .7rem; }
+    .tool-header h2 .accent-bar { width: 4px; height: 1.6rem; background: linear-gradient(180deg, var(--accent), var(--accent2)); border-radius: 4px; flex-shrink: 0; }
+    .tool-header p { color: var(--muted); font-size: .88rem; margin-top: .4rem; margin-left: calc(4px + .7rem); }
+
+    /* CARDS */
+    .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+    @media (max-width: 620px) { .calc-grid { grid-template-columns: 1fr; } }
+    .calc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.6rem; transition: border-color .25s; }
+    .calc-card:focus-within { border-color: rgba(232,82,42,.4); }
+    .calc-card.full { grid-column: 1 / -1; }
+    .calc-card .card-title { font-family: 'Rajdhani', sans-serif; font-size: .78rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+    .calc-card .card-title .tag { background: rgba(232,82,42,.15); color: var(--accent); border-radius: 4px; font-size: .65rem; padding: .1rem .4rem; }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: .78rem; color: var(--muted); letter-spacing: .06em; margin-bottom: .4rem; }
+    .field input[type="number"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .75rem 1rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 500;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -moz-appearance: textfield;
+    }
+    .field input[type="number"]::-webkit-inner-spin-button,
+    .field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .field input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,82,42,.12); }
+
+    /* SELECT STYLED */
+    .field select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .75rem 1rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: .95rem;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      padding-right: 2.5rem;
+    }
+    .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,82,42,.12); }
+    .field select:disabled { opacity: .4; cursor: not-allowed; }
+    .field select option { background: #1a1e28; }
+
+    /* RESULT */
+    .result-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1rem; font-size: 1.5rem; font-weight: 700; font-family: 'Rajdhani', sans-serif; letter-spacing: .06em; min-height: 3rem; display: flex; align-items: center; transition: color .3s; }
+    .result-box .placeholder { color: var(--muted); font-size: .9rem; font-weight: 400; }
+    .wear-green  { color: #2ecc71; }
+    .wear-gray   { color: #8e9ab5; }
+    .wear-blue   { color: #3b9ef5; }
+    .wear-yellow { color: #f1c40f; }
+    .wear-red    { color: #e74c3c; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.8rem 0; }
+    .formula-hint { font-size: .72rem; color: var(--muted); letter-spacing: .04em; margin-top: .6rem; font-family: monospace; opacity: .7; }
+
+    /* BRAND SELECTOR */
+    .brand-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: .8rem;
+      margin-bottom: 1.2rem;
+    }
+    .brand-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .8rem .5rem .6rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .5rem;
+      transition: border-color .2s, background .2s, transform .15s;
+      position: relative;
+    }
+    .brand-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .brand-btn.selected { border-color: var(--accent); background: rgba(232,82,42,.1); }
+    .brand-btn img {
+      width: 48px;
+      height: 28px;
+      object-fit: contain;
+      transition: opacity .2s;
+    }
+    .brand-btn img { opacity: .85; }
+    .brand-btn.selected img, .brand-btn:hover img { opacity: 1; }
+    .brand-btn span { font-family: 'Rajdhani', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .brand-btn.selected span { color: var(--accent2); }
+
+    /* TIRE RESULT CARD */
+    .tire-result-card {
+      background: rgba(232,82,42,.06);
+      border: 1px solid rgba(232,82,42,.2);
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      margin-top: .8rem;
+    }
+    .tire-result-card img { width: 56px; height: 32px; object-fit: contain; filter: brightness(0) invert(1); opacity: .9; }
+    .tire-result-info .tire-name { font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 700; letter-spacing: .1em; color: var(--text); }
+    .tire-result-info .tire-meta { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+    .tire-c7-value { margin-left: auto; font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; color: var(--accent2); }
+    .tire-c7-label { font-size: .65rem; color: var(--muted); letter-spacing: .08em; text-align: right; }
+
+    /* NO DATA */
+    .no-data-msg { color: var(--muted); font-size: .82rem; font-style: italic; margin-top: .4rem; }
+
+    /* ATTACK TAGS */
+    .attack-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    .attack-badge {
+      font-size: .7rem;
+      padding: .2rem .6rem;
+      border-radius: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: .06em;
+      border: 1px solid;
+    }
+    .attack-badge.has-data { background: rgba(232,82,42,.12); color: var(--accent2); border-color: rgba(232,82,42,.3); }
+    .attack-badge.no-data { background: rgba(107,116,133,.08); color: var(--muted); border-color: var(--border); }
+
+    /* SECTION SEPARATOR */
+    .section-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 1.8rem 0 .8rem;
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* GPRO */
+    .gpro-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 1rem; color: var(--muted); text-align: center; }
+    .gpro-placeholder .big-icon { font-size: 4rem; }
+    .gpro-placeholder h3 { font-family: 'Rajdhani', sans-serif; font-size: 1.4rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text); }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    .fadein { animation: fadeUp .5s ease both; }
+    .fadein-d1 { animation-delay: .1s; }
+    .fadein-d2 { animation-delay: .2s; }
+    .fadein-d3 { animation-delay: .3s; }
+  </style>
+</head>
+<body>
+
+<!-- PASSWORD -->
+<div class="page" id="page-password">
+  <div class="logo-block fadein">
+    <div class="brand">RG Tools</div>
+    <div class="sub">Plateforme d'outils pour pilotes virtuels</div>
+    <div class="speed-lines"><span></span><span></span><span></span><span></span><span></span></div>
+  </div>
+  <div class="pw-card fadein fadein-d1">
+    <h2>🔒 Accès sécurisé</h2>
+    <div class="input-group">
+      <input type="password" id="pw-input" placeholder="Entrez le mot de passe…" autocomplete="off" />
+      <div class="err-msg" id="pw-error">Mot de passe incorrect. Réessayez.</div>
+    </div>
+    <button class="btn" onclick="checkPassword()">Accéder →</button>
+  </div>
+</div>
+
+<!-- SELECT -->
+<div class="page hidden" id="page-select">
+  <div class="select-title fadein">
+    <h1>Choisissez votre jeu</h1>
+    <p>Sélectionnez la plateforme pour accéder aux outils</p>
+  </div>
+  <div class="game-cards">
+    <div class="game-card fadein fadein-d1" onclick="enterGame('rg')">
+      <span class="icon">🏁</span>
+      <div class="name">Rallye Game</div>
+      <div class="desc">Gestion d'équipage en ligne</div>
+      <span class="badge">Outils disponibles</span>
+    </div>
+    <div class="game-card gpro fadein fadein-d2" onclick="enterGame('gpro')">
+      <span class="icon">🏎️</span>
+      <div class="name">GPRO</div>
+      <div class="desc">Grand Prix Racing Online</div>
+      <span class="badge">En développement</span>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="page hidden" id="page-app" style="position:fixed;display:flex;flex-direction:column;">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack()">← Retour</button>
+    <span class="game-label" id="topbar-game">Rallye Game</span>
+    <span class="sep">|</span>
+    <span class="tool-label" id="topbar-tool">Calculateur d'usure</span>
+  </div>
+  <div class="app-layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="app-content" id="app-content"></main>
+  </div>
+</div>
+
+<script>
+/* ─── CONFIG ─── */
+const PASSWORD = 'rallye2024';
+const CSV_PATH = 'degradation_pneus.csv';
+
+const BRANDS = ['Dmack','Hankook','Kumho','Michelin','Pirelli','Toyo','Yokohama'];
+const ATTACKS = ['Attaque Poussee','Attaque Normale','Grosse Attaque','Calme','Ramener Auto','Tres Grosse Attaque'];
+const ATTACK_LABELS = {
+  'Attaque Poussee':    'Attaque Poussée',
+  'Attaque Normale':    'Attaque Normale',
+  'Grosse Attaque':     'Grosse Attaque',
+  'Calme':              'Calme',
+  'Ramener Auto':       "Ramener l'auto",
+  'Tres Grosse Attaque':'Très Grosse Attaque'
+};
+
+const LOGO_PATH = 'logos/'; // logos/michelin.png etc.
+const LOGO_FILES = {
+  'Dmack':    'Dmack.png',
+  'Hankook':  'Hankook.png',
+  'Kumho':    'Kumho.png',
+  'Michelin': 'michelin.png',
+  'Pirelli':  'pirelli.png',
+  'Toyo':     'Toyo.png',
+  'Yokohama': 'Yokohama.png'
+};
+
+
+const GAMES = {
+  rg: {
+    label: 'Rallye Game',
+    sections: [
+      { title: 'Voiture', items: [
+        { id: 'wear',  icon: '⚙️', label: "Calculateur d'usure" },
+        { id: 'tires', icon: '🔴', label: 'Dégradation pneus'   }
+      ]},
+      { title: 'Bientôt disponible', items: [
+        { id: 'weather',  icon: '🌦️', label: 'Météo & pneus',  soon: true },
+        { id: 'strategy', icon: '📊', label: 'Stratégie',       soon: true },
+        { id: 'earnings', icon: '💰', label: 'Gains',           soon: true }
+      ]}
+    ],
+    defaultTool: 'wear'
+  },
+  gpro: {
+    label: 'GPRO',
+    sections: [{ title: 'Bientôt disponible', items: [{ id: 'gpro-soon', icon: '🏎️', label: 'Outils GPRO', soon: true }]}],
+    defaultTool: 'gpro-placeholder'
+  }
+};
+
+let currentGame = 'rg';
+let currentTool = 'wear';
+let tireData = [];
+
+/* ─── PASSWORD ─── */
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  const input = document.getElementById('pw-input');
+  const err   = document.getElementById('pw-error');
+  if (val === PASSWORD) {
+    showPage('page-select');
+  } else {
+    input.classList.add('error');
+    err.classList.add('show');
+    setTimeout(() => input.classList.remove('error'), 400);
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('page-password').classList.contains('hidden')) checkPassword();
+});
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+function enterGame(game) {
+  currentGame = game;
+  currentTool = GAMES[game].defaultTool;
+  renderSidebar();
+  renderTool();
+  document.getElementById('topbar-game').textContent = GAMES[game].label;
+  showPage('page-app');
+}
+function goBack() { showPage('page-select'); }
+
+/* ─── SIDEBAR ─── */
+function renderSidebar() {
+  const g = GAMES[currentGame];
+  document.getElementById('sidebar').innerHTML = g.sections.map(s => `
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">${s.title}</div>
+      ${s.items.map(item => `
+        <div class="sidebar-item ${item.id===currentTool?'active':''}"
+             onclick="${item.soon ? '' : `selectTool('${item.id}')`}"
+             style="${item.soon?'cursor:default;opacity:.5;':''}">
+          <span class="s-icon">${item.icon}</span>
+          <span>${item.label}</span>
+          ${item.soon?'<span class="coming-soon">Bientôt</span>':''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+function selectTool(id) {
+  currentTool = id;
+  renderSidebar();
+  renderTool();
+}
+
+/* ─── TOOLS ─── */
+function renderTool() {
+  const content = document.getElementById('app-content');
+  const topbarTool = document.getElementById('topbar-tool');
+  if (currentTool === 'wear') {
+    topbarTool.textContent = "Calculateur d'usure";
+    content.innerHTML = toolWearHTML();
+  } else if (currentTool === 'tires') {
+    topbarTool.textContent = 'Dégradation pneus';
+    content.innerHTML = toolTiresHTML();
+    loadTireData();
+  } else if (currentTool === 'gpro-placeholder') {
+    topbarTool.textContent = 'GPRO';
+    content.innerHTML = `<div class="gpro-placeholder fadein"><div class="big-icon">🏗️</div><h3>En cours de développement</h3><p>Les outils GPRO arrivent prochainement.</p></div>`;
+  }
+}
+
+/* ══════════════════════════════════════
+   OUTIL 1 : USURE VOITURE
+══════════════════════════════════════ */
+function toolWearHTML() {
+  return `
+  <div class="tool-panel">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar"></span> Calculateur d'usure voiture</h2>
+      <p>Calculez le taux d'usure par kilomètre de votre voiture et projetez les futures spéciales.</p>
+    </div>
+    <div class="calc-grid">
+      <div class="calc-card fadein fadein-d1">
+        <div class="card-title"><span class="tag">C1</span> Distance parcourue</div>
+        <div class="field">
+          <label>Kilomètres de la spéciale</label>
+          <input type="number" id="c1" placeholder="ex : 18.4" min="0" step="0.01" oninput="calcWear()" />
+        </div>
+      </div>
+      <div class="calc-card fadein fadein-d1">
+        <div class="card-title"><span class="tag">C2 / C3</span> Usure voiture</div>
+        <div class="field">
+          <label>Usure avant la spéciale (%)</label>
+          <input type="number" id="c2" placeholder="ex : 12" min="0" max="100" step="0.01" oninput="calcWear()" />
+        </div>
+        <div class="field">
+          <label>Usure après la spéciale (%)</label>
+          <input type="number" id="c3" placeholder="ex : 14.5" min="0" max="100" step="0.01" oninput="calcWear()" />
+        </div>
+      </div>
+      <div class="calc-card full fadein fadein-d2" style="background:rgba(232,82,42,.05);border-color:rgba(232,82,42,.18);">
+        <div class="card-title"><span class="tag">C4</span> Taux d'usure calculé</div>
+        <div class="field">
+          <label>Usure par kilomètre</label>
+          <div class="result-box" id="c4-display"><span class="placeholder">Renseignez C1, C2 et C3…</span></div>
+          <div class="formula-hint">Formule : ((C3 − C2) / C1) / 100</div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" />
+    <div class="calc-grid">
+      <div class="calc-card fadein fadein-d2">
+        <div class="card-title"><span class="tag">C5</span> Projection future</div>
+        <div class="field">
+          <label>Si je dois parcourir (km) :</label>
+          <input type="number" id="c5" placeholder="ex : 25" min="0" step="0.01" oninput="calcWear()" />
+        </div>
+      </div>
+      <div class="calc-card fadein fadein-d2">
+        <div class="card-title">Usure estimée</div>
+        <div class="field">
+          <label>Combien d'usure je vais avoir ?</label>
+          <div class="result-box" id="c6-display"><span class="placeholder">—</span></div>
+        </div>
+        <div id="wear-legend" style="margin-top:.8rem;font-size:.72rem;display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function calcWear() {
+  const c1 = parseFloat(document.getElementById('c1').value);
+  const c2 = parseFloat(document.getElementById('c2').value);
+  const c3 = parseFloat(document.getElementById('c3').value);
+  const c5 = parseFloat(document.getElementById('c5').value);
+  const c4Box = document.getElementById('c4-display');
+  const c6Box = document.getElementById('c6-display');
+  const legend = document.getElementById('wear-legend');
+  let c4 = null;
+  if (!isNaN(c1) && !isNaN(c2) && !isNaN(c3) && c1 > 0) {
+    c4 = ((c3 - c2) / c1) / 100;
+    c4Box.innerHTML = `<span style="color:var(--accent2)">${(c4*100).toFixed(4)} %/km</span>`;
+  } else {
+    c4Box.innerHTML = `<span class="placeholder">Renseignez C1, C2 et C3…</span>`;
+  }
+  if (c4 !== null && !isNaN(c5) && c5 > 0) {
+    const c6 = c5 * c4 * 100;
+    const {cls} = wearColor(c6);
+    c6Box.innerHTML = `<span class="${cls}">${c6.toFixed(2)} %</span>`;
+    legend.innerHTML = wearLegendHTML(c6);
+  } else {
+    c6Box.innerHTML = `<span class="placeholder">—</span>`;
+    legend.innerHTML = '';
+  }
+}
+
+function wearColor(pct) {
+  if (pct < 5)  return {cls:'wear-green',  label:'Faible'};
+  if (pct < 25) return {cls:'wear-gray',   label:'Modérée'};
+  if (pct < 50) return {cls:'wear-blue',   label:'Moyenne'};
+  if (pct < 80) return {cls:'wear-yellow', label:'Élevée'};
+  return              {cls:'wear-red',    label:'Critique'};
+}
+function wearLegendHTML(current) {
+  const items = [
+    {range:'0 – 4.99 %',   cls:'wear-green',  label:'Faible'},
+    {range:'5 – 24.99 %',  cls:'wear-gray',   label:'Modérée'},
+    {range:'25 – 49.99 %', cls:'wear-blue',   label:'Moyenne'},
+    {range:'50 – 79.99 %', cls:'wear-yellow', label:'Élevée'},
+    {range:'80 %+',        cls:'wear-red',    label:'Critique'},
+  ];
+  const {cls:activeCls} = wearColor(current);
+  return items.map(i => `
+    <div style="display:flex;align-items:center;gap:.35rem;opacity:${i.cls===activeCls?'1':'.35'}">
+      <span style="width:8px;height:8px;border-radius:50%;display:inline-block;background:currentColor;" class="${i.cls}"></span>
+      <span class="${i.cls}" style="font-size:.7rem;">${i.label}</span>
+      <span style="color:var(--muted);font-size:.68rem;">${i.range}</span>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════
+   OUTIL 2 : DEGRADATION PNEUS
+══════════════════════════════════════ */
+function toolTiresHTML() {
+  return `
+  <div class="tool-panel">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar"></span> Calculateur dégradation pneus</h2>
+      <p>Calculez la dégradation de vos pneus par kilomètre en fonction de l'attaque choisie.</p>
+    </div>
+
+    <!-- SECTION CALCUL -->
+    <div class="calc-grid">
+      <div class="calc-card fadein fadein-d1">
+        <div class="card-title"><span class="tag">C1</span> Distance parcourue</div>
+        <div class="field">
+          <label>Kilomètres de la spéciale</label>
+          <input type="number" id="t-c1" placeholder="ex : 18.4" min="0" step="0.01" oninput="calcTireWear()" />
+        </div>
+      </div>
+      <div class="calc-card fadein fadein-d1">
+        <div class="card-title"><span class="tag">C2 / C3</span> Dégradation pneu</div>
+        <div class="field">
+          <label>Dégradation avant la spéciale (%)</label>
+          <input type="number" id="t-c2" placeholder="ex : 20" min="0" max="100" step="0.01" oninput="calcTireWear()" />
+        </div>
+        <div class="field">
+          <label>Dégradation après la spéciale (%)</label>
+          <input type="number" id="t-c3" placeholder="ex : 25" min="0" max="100" step="0.01" oninput="calcTireWear()" />
+        </div>
+      </div>
+      <div class="calc-card full fadein fadein-d2" style="background:rgba(232,82,42,.05);border-color:rgba(232,82,42,.18);">
+        <div class="card-title"><span class="tag">C4</span> Taux de dégradation calculé</div>
+        <div class="field">
+          <label>Dégradation par kilomètre</label>
+          <div class="result-box" id="t-c4-display"><span class="placeholder">Renseignez C1, C2 et C3…</span></div>
+          <div class="formula-hint">Formule : ((C3 − C2) / C1) / 100</div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider" />
+    <div class="calc-grid">
+      <div class="calc-card fadein fadein-d2">
+        <div class="card-title"><span class="tag">C5</span> Projection future</div>
+        <div class="field">
+          <label>Si je dois parcourir (km) :</label>
+          <input type="number" id="t-c5" placeholder="ex : 25" min="0" step="0.01" oninput="calcTireWear()" />
+        </div>
+      </div>
+      <div class="calc-card fadein fadein-d2">
+        <div class="card-title">Dégradation estimée</div>
+        <div class="field">
+          <label>Combien de dégradation je vais avoir ?</label>
+          <div class="result-box" id="t-c6-display"><span class="placeholder">—</span></div>
+        </div>
+        <div id="t-wear-legend" style="margin-top:.8rem;font-size:.72rem;display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;"></div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- SECTION BASE DE DONNÉES PNEUS -->
+    <div class="section-label fadein">Base de données pneus</div>
+
+    <div id="tire-db-section">
+      <div style="color:var(--muted);font-size:.85rem;">Chargement de la base de données…</div>
+    </div>
+  </div>`;
+}
+
+function calcTireWear() {
+  const c1 = parseFloat(document.getElementById('t-c1').value);
+  const c2 = parseFloat(document.getElementById('t-c2').value);
+  const c3 = parseFloat(document.getElementById('t-c3').value);
+  const c5 = parseFloat(document.getElementById('t-c5').value);
+  const c4Box = document.getElementById('t-c4-display');
+  const c6Box = document.getElementById('t-c6-display');
+  const legend = document.getElementById('t-wear-legend');
+  let c4 = null;
+  if (!isNaN(c1) && !isNaN(c2) && !isNaN(c3) && c1 > 0) {
+    c4 = ((c3 - c2) / c1) / 100;
+    c4Box.innerHTML = `<span style="color:var(--accent2)">${(c4*100).toFixed(4)} %/km</span>`;
+  } else {
+    c4Box.innerHTML = `<span class="placeholder">Renseignez C1, C2 et C3…</span>`;
+  }
+  if (c4 !== null && !isNaN(c5) && c5 > 0) {
+    const c6 = c5 * c4 * 100;
+    const {cls} = wearColor(c6);
+    c6Box.innerHTML = `<span class="${cls}">${c6.toFixed(2)} %</span>`;
+    legend.innerHTML = wearLegendHTML(c6);
+  } else {
+    c6Box.innerHTML = `<span class="placeholder">—</span>`;
+    legend.innerHTML = '';
+  }
+}
+
+/* ─── CSV LOADER ─── */
+async function loadTireData() {
+  try {
+    const resp = await fetch(CSV_PATH);
+    if (!resp.ok) throw new Error('CSV not found');
+    const text = await resp.text();
+    tireData = parseCSV(text);
+    renderTireDB();
+  } catch(e) {
+    document.getElementById('tire-db-section').innerHTML =
+      `<div style="color:var(--red);font-size:.82rem;">⚠️ Impossible de charger la base de données (<code>${CSV_PATH}</code>). Vérifiez que le fichier est bien dans le repo.</div>`;
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim() && !l.startsWith(';'));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(';');
+    if (!cols[0] || cols[0].trim() === '') continue;
+    rows.push({
+      pneu:    cols[0].trim(),
+      gomme:   cols[1]?.trim() || '',
+      surface: cols[2]?.trim() || '',
+      meteo:   cols[3]?.trim() || '',
+      temp:    cols[4]?.trim() || '',
+      data: {
+        'Attaque Poussee':     parseVal(cols[5]),
+        'Attaque Normale':     parseVal(cols[6]),
+        'Grosse Attaque':      parseVal(cols[7]),
+        'Calme':               parseVal(cols[8]),
+        'Ramener Auto':        parseVal(cols[9]),
+        'Tres Grosse Attaque': parseVal(cols[10]),
+      }
+    });
+  }
+  return rows;
+}
+
+function parseVal(v) {
+  if (!v || v.trim() === '') return null;
+  return parseFloat(v.trim().replace(',','.')) || null;
+}
+
+function getBrand(pneu) {
+  return BRANDS.find(b => pneu.startsWith(b)) || '';
+}
+
+/* ─── TIRE DB UI ─── */
+let tireFilters = { brand: null, surface: null, meteo: null, temp: null, attack: null };
+
+function renderTireDB() {
+  const section = document.getElementById('tire-db-section');
+  section.innerHTML = `
+    <!-- BRAND PICKER -->
+    <div class="calc-card fadein" style="margin-bottom:1.4rem;">
+      <div class="card-title">Sélectionnez la marque</div>
+      <div class="brand-grid" id="brand-grid">
+        ${BRANDS.map(b => `
+          <div class="brand-btn" id="brand-${b}" onclick="selectBrand('${b}')">
+            <img src="${LOGO_PATH}${LOGO_FILES[b]}" alt="${b}"
+                 onerror="this.style.display='none';this.nextElementSibling.style.fontSize='1rem'" />
+            <span>${b}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="calc-grid fadein fadein-d1" style="margin-bottom:1.4rem;" id="filter-row">
+      <div class="calc-card">
+        <div class="card-title">Surface</div>
+        <div class="field">
+          <select id="f-surface" onchange="applyFilters()" disabled>
+            <option value="">— Choisir —</option>
+            <option>Asphalte</option>
+            <option>Terre</option>
+            <option>Neige</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title">Météo</div>
+        <div class="field">
+          <select id="f-meteo" onchange="applyFilters()" disabled>
+            <option value="">— Choisir —</option>
+            <option>Sec</option>
+            <option>Pluie</option>
+            <option>Intermediaire</option>
+            <option>Toutes</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title">Température</div>
+        <div class="field">
+          <select id="f-temp" onchange="applyFilters()" disabled>
+            <option value="">— Choisir —</option>
+            <option>Chaud</option>
+            <option>Froid</option>
+            <option>Chaud/Froid</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title">Type d'attaque</div>
+        <div class="field">
+          <select id="f-attack" onchange="applyFilters()" disabled>
+            <option value="">— Choisir —</option>
+            ${ATTACKS.map(a => `<option value="${a}">${ATTACK_LABELS[a]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- PNEU SELECT -->
+    <div class="calc-card fadein fadein-d2" id="tire-select-card" style="display:none;margin-bottom:1.4rem;">
+      <div class="card-title"><span class="tag">Gomme</span> Choisissez votre pneu</div>
+      <div class="field">
+        <select id="f-tire" onchange="selectTire()">
+          <option value="">— Sélectionner un pneu —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- RÉSULTAT C7 -->
+    <div id="tire-result-zone"></div>
+  `;
+}
+
+function selectBrand(brand) {
+  tireFilters.brand = brand;
+  document.querySelectorAll('.brand-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('brand-' + brand).classList.add('selected');
+  ['f-surface','f-meteo','f-temp','f-attack'].forEach(id => {
+    document.getElementById(id).disabled = false;
+    document.getElementById(id).value = '';
+  });
+  tireFilters = { ...tireFilters, surface: null, meteo: null, temp: null, attack: null };
+  document.getElementById('tire-select-card').style.display = 'none';
+  document.getElementById('tire-result-zone').innerHTML = '';
+}
+
+function applyFilters() {
+  if (!tireFilters.brand) return;
+  tireFilters.surface = document.getElementById('f-surface').value || null;
+  tireFilters.meteo   = document.getElementById('f-meteo').value   || null;
+  tireFilters.temp    = document.getElementById('f-temp').value    || null;
+  tireFilters.attack  = document.getElementById('f-attack').value  || null;
+
+  const filtered = tireData.filter(t => {
+    if (getBrand(t.pneu) !== tireFilters.brand) return false;
+    if (tireFilters.surface && t.surface !== tireFilters.surface) return false;
+    if (tireFilters.meteo   && t.meteo   !== tireFilters.meteo)   return false;
+    if (tireFilters.temp    && t.temp    !== tireFilters.temp)     return false;
+    return true;
+  });
+
+  const sel = document.getElementById('f-tire');
+  sel.innerHTML = '<option value="">— Sélectionner un pneu —</option>' +
+    filtered.map(t => `<option value="${t.pneu}">${t.pneu} (${t.gomme})</option>`).join('');
+
+  const card = document.getElementById('tire-select-card');
+  card.style.display = filtered.length > 0 ? 'block' : 'none';
+  document.getElementById('tire-result-zone').innerHTML = '';
+  if (filtered.length === 0 && (tireFilters.surface || tireFilters.meteo || tireFilters.temp)) {
+    card.style.display = 'block';
+    card.querySelector('.card-title').textContent = '';
+    sel.innerHTML = '<option>Aucun pneu trouvé pour ces critères</option>';
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+  }
+}
+
+function selectTire() {
+  const selVal = document.getElementById('f-tire').value;
+  const zone = document.getElementById('tire-result-zone');
+  if (!selVal) { zone.innerHTML = ''; return; }
+
+  const tire = tireData.find(t => t.pneu === selVal);
+  if (!tire) { zone.innerHTML = ''; return; }
+
+  const brand = getBrand(tire.pneu);
+  const attack = tireFilters.attack;
+  const logoSrc = `${LOGO_PATH}${LOGO_FILES[brand] || ''}`;
+
+  // Build C7 value
+  let c7val = null;
+  let c7html = '';
+  if (attack && tire.data[attack] !== null) {
+    c7val = tire.data[attack];
+    c7html = `
+      <div class="tire-c7-value">${c7val.toFixed(2)} %/km</div>
+      <div class="tire-c7-label">C7 — Dégradation/km<br><span style="color:var(--accent2)">${ATTACK_LABELS[attack]}</span></div>
+    `;
+  } else if (attack) {
+    c7html = `<div style="text-align:right"><div style="color:var(--muted);font-size:.82rem;font-style:italic">Donnée non disponible<br>pour cette attaque</div></div>`;
+  }
+
+  // All attacks overview
+  const attackBadges = ATTACKS.map(a => {
+    const val = tire.data[a];
+    const has = val !== null;
+    return `<span class="attack-badge ${has?'has-data':'no-data'}" title="${ATTACK_LABELS[a]}">
+      ${ATTACK_LABELS[a]}${has ? ` : <strong>${val.toFixed(2)}%</strong>` : ' : —'}
+    </span>`;
+  }).join('');
+
+  zone.innerHTML = `
+    <div class="calc-card fadein" style="background:rgba(232,82,42,.05);border-color:rgba(232,82,42,.2);">
+      <div class="card-title"><span class="tag">C7</span> Résultat — ${tire.pneu}</div>
+      <div class="tire-result-card">
+        <img src="${logoSrc}" alt="${brand}" onerror="this.style.display='none'" />
+        <div class="tire-result-info">
+          <div class="tire-name">${tire.pneu}</div>
+          <div class="tire-meta">Gomme : ${tire.gomme} · ${tire.surface} · ${tire.meteo} · ${tire.temp}</div>
+        </div>
+        ${c7html}
+      </div>
+      <div style="margin-top:1rem;">
+        <div style="font-size:.72rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;">Données disponibles par attaque</div>
+        <div class="attack-badges">${attackBadges}</div>
+      </div>
+    </div>
+
+    ${c7val !== null ? `
+    <div class="calc-card fadein fadein-d1" style="margin-top:1rem;">
+      <div class="card-title"><span class="tag">Projection C7</span> Utiliser C7 pour une spéciale</div>
+      <div class="calc-grid" style="gap:1rem;margin-top:.5rem;">
+        <div class="field">
+          <label>Si je dois parcourir (km) :</label>
+          <input type="number" id="c7-km" placeholder="ex : 22" min="0" step="0.01" oninput="calcC7Projection(${c7val})" />
+        </div>
+        <div class="field">
+          <label>Dégradation estimée</label>
+          <div class="result-box" id="c7-result"><span class="placeholder">—</span></div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+  `;
+}
+
+function calcC7Projection(c7val) {
+  const km = parseFloat(document.getElementById('c7-km').value);
+  const box = document.getElementById('c7-result');
+  if (!isNaN(km) && km > 0) {
+    const pct = km * c7val;
+    const {cls} = wearColor(pct);
+    box.innerHTML = `<span class="${cls}">${pct.toFixed(2)} %</span>`;
+  } else {
+    box.innerHTML = `<span class="placeholder">—</span>`;
+  }
+}
+</script>
+</body>
+</html>
