@@ -1173,49 +1173,49 @@ const FEEDBACK_OPTIONS = [
 // Feedback texts per part
 const FB_TEXTS = {
   ail: {
-     3:'Manque vraiment beaucoup de vitesse en ligne droite',
-     2:'La voiture manque un peu de vitesse en ligne droite',
-     1:'Pourrait avoir un peu plus de vitesse en ligne droite',
-     0:'Satisfait',
-    '-1':'Manque un peu d'adhérence dans les courbes',
-    '-2':'Très instable dans de nombreux virages',
-    '-3':'Aucune adhérence, impossible à conduire'
+     3:"Manque vraiment beaucoup de vitesse en ligne droite",
+     2:"La voiture manque un peu de vitesse en ligne droite",
+     1:"Pourrait avoir un peu plus de vitesse en ligne droite",
+     0:"Satisfait",
+    "-1":"Manque un peu d’adhérence dans les courbes",
+    "-2":"Très instable dans de nombreux virages",
+    "-3":"Aucune adhérence, impossible à conduire"
   },
   mot: {
-     3:'Favoriser beaucoup plus les bas régimes !',
-     2:'Le régime moteur est trop élevé',
-     1:'Favoriser un peu plus les bas régimes',
-     0:'Satisfait',
-    '-1':'Pas assez de puissance dans les lignes droites',
-    '-2':'La puissance moteur n'est pas suffisante',
-    '-3':'Favoriser beaucoup plus les hauts régimes'
+     3:"Favoriser beaucoup plus les bas régimes !",
+     2:"Le régime moteur est trop élevé",
+     1:"Favoriser un peu plus les bas régimes",
+     0:"Satisfait",
+    "-1":"Pas assez de puissance dans les lignes droites",
+    "-2":"La puissance moteur n’est pas suffisante",
+    "-3":"Favoriser beaucoup plus les hauts régimes"
   },
   fre: {
-     3:'Déplacer l'équilibre beaucoup plus à l'arrière',
-     2:'Efficacité améliorée en déplaçant l'équilibre vers l'arrière',
-     1:'Balance un peu plus à l'arrière',
-     0:'Satisfait',
-    '-1':'Équilibre un peu plus à l'avant',
-    '-2':'Efficacité améliorée en déplaçant l'équilibre vers l'avant',
-    '-3':'Beaucoup plus confortable avec l'équilibre vers l'avant'
+     3:"Déplacer l’équilibre beaucoup plus à l’arrière",
+     2:"Efficacité améliorée en déplaçant l’équilibre vers l’arrière",
+     1:"Balance un peu plus à l’arrière",
+     0:"Satisfait",
+    "-1":"Équilibre un peu plus à l’avant",
+    "-2":"Efficacité améliorée en déplaçant l’équilibre vers l’avant",
+    "-3":"Beaucoup plus confortable avec l’équilibre vers l’avant"
   },
   bav: {
-     3:'Taux beaucoup plus faible entre les engrenages',
-     2:'Le rapport de transmission est trop élevé',
-     1:'Raccourcissez les rapports de boîte',
-     0:'Satisfait',
-    '-1':'Trop souvent dans le rouge — rapport un peu plus élevé',
-    '-2':'Le rapport de transmission est trop faible',
-    '-3':'Moteur va exploser — rapport beaucoup plus élevé'
+     3:"Taux beaucoup plus faible entre les engrenages",
+     2:"Le rapport de transmission est trop élevé",
+     1:"Raccourcissez les rapports de boîte",
+     0:"Satisfait",
+    "-1":"Trop souvent dans le rouge — rapport un peu plus élevé",
+    "-2":"Le rapport de transmission est trop faible",
+    "-3":"Moteur va exploser — rapport beaucoup plus élevé"
   },
   sus: {
-     3:'Beaucoup trop rigide — baisser fortement la rigidité',
-     2:'La rigidité de suspension est trop élevée',
-     1:'Trop rigide — baisser un peu la rigidité',
-     0:'Satisfait',
-    '-1':'Suspension un peu plus rigide pour aller plus vite',
-    '-2':'La rigidité de suspension est trop faible',
-    '-3':'La rigidité devrait être beaucoup plus élevée'
+     3:"Beaucoup trop rigide — baisser fortement la rigidité",
+     2:"La rigidité de suspension est trop élevée",
+     1:"Trop rigide — baisser un peu la rigidité",
+     0:"Satisfait",
+    "-1":"Suspension un peu plus rigide pour aller plus vite",
+    "-2":"La rigidité de suspension est trop faible",
+    "-3":"La rigidité devrait être beaucoup plus élevée"
   }
 };
 function getFbText(part, val) {
@@ -1402,7 +1402,7 @@ function gpro_setFeedback(rowIdx, part, val) {
 
 function gpro_calculate() {
   if (!gpro.marge && gpro.marge !== 0) {
-    alert('Veuillez d'abord renseigner les connaissances techniques et l'expérience du pilote pour calculer la marge d'acceptation.');
+    alert("Veuillez renseigner les connaissances techniques et l'expérience du pilote pour calculer la marge d'acceptation.");
     return;
   }
   const latestIdx = gpro.rows.length - 1;
