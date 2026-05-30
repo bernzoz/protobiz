@@ -345,12 +345,12 @@
     }
     .marge-display .marge-label { font-size: .7rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
     .marge-display .marge-value { font-family: 'Rajdhani', sans-serif; font-size: 1.6rem; font-weight: 700; color: #3b9ef5; }
-    .setup-table-wrap { overflow-x: auto; margin-bottom: 1.4rem; }
+    .setup-table-wrap { overflow-x: visible; margin-bottom: 1.4rem; }
     .setup-table {
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 820px;
+      width: 100%;
     }
     .setup-table thead tr th {
       background: rgba(59,158,245,.1);
@@ -488,6 +488,104 @@
     .setup-actions-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
     .aileron-header { display: flex; flex-direction: column; align-items: center; gap: .1rem; }
     .aileron-sub { font-size: .6rem; color: var(--muted); letter-spacing: .06em; display: flex; gap: .8rem; }
+
+
+    /* ── SETUP CARD LAYOUT (replaces table) ── */
+    .setup-row-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1rem;
+      transition: border-color .2s;
+    }
+    .setup-row-card.setup-row-latest {
+      border-color: rgba(59,158,245,.35);
+      background: rgba(59,158,245,.04);
+    }
+    .setup-row-header {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      margin-bottom: 1rem;
+    }
+    .setup-row-num {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .setup-row-badge {
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      background: rgba(59,158,245,.15);
+      color: #3b9ef5;
+      border: 1px solid rgba(59,158,245,.3);
+      border-radius: 20px;
+      padding: .2rem .7rem;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .setup-parts-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1rem;
+    }
+    @media(max-width:900px) { .setup-parts-grid { grid-template-columns: repeat(3,1fr); } }
+    @media(max-width:560px) { .setup-parts-grid { grid-template-columns: repeat(2,1fr); } }
+    .setup-part-cell {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+    .setup-part-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #3b9ef5;
+    }
+    .setup-part-val { }
+    .setup-val-big {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .setup-part-fb { }
+    .setup-select-full {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .45rem .7rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: .78rem;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7485' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .6rem center;
+      padding-right: 1.8rem;
+      transition: border-color .2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .setup-select-full:focus { border-color: #3b9ef5; box-shadow: 0 0 0 3px rgba(59,158,245,.12); }
+    .setup-select-full option { background: #1a1e28; white-space: normal; }
+    .fb-subtext {
+      font-size: .65rem;
+      color: var(--muted);
+      margin-top: .25rem;
+      line-height: 1.3;
+    }
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -1164,11 +1262,14 @@ let gpro = {
 const PARTS = ['ailAv','ailAr','mot','fre','bav','sus'];
 const PART_LABELS = { ailAv:'Ail. Av', ailAr:'Ail. Ar', mot:'Moteur', fre:'Freins', bav:'BAV', sus:'Suspension' };
 
-const FEEDBACK_OPTIONS = [
-  { v: 3,  label: '+3' }, { v: 2, label: '+2' }, { v: 1, label: '+1' },
-  { v: 0,  label: '0 — Satisfait' },
-  { v:-1, label: '-1' }, { v:-2, label: '-2' }, { v:-3, label: '-3' }
-];
+const FEEDBACK_VALUES = [3, 2, 1, 0, -1, -2, -3];
+function getFeedbackOptions(part) {
+  return FEEDBACK_VALUES.map(v => {
+    const txt = getFbText(part, v);
+    const prefix = v > 0 ? '+' + v : (v === 0 ? '0' : v.toString());
+    return { v, label: prefix + (txt ? ' — ' + txt : '') };
+  });
+}
 
 // Feedback texts per part
 const FB_TEXTS = {
@@ -1329,75 +1430,67 @@ function renderGproTable() {
   const wrap = document.getElementById('gpro-table-wrap');
   if (!wrap) return;
   const latestIdx = gpro.rows.length - 1;
+  const PART_DISPLAY = [
+    { p:'ailAv', label:'Ail. AV' },
+    { p:'ailAr', label:'Ail. AR' },
+    { p:'mot',   label:'Moteur'  },
+    { p:'fre',   label:'Freins'  },
+    { p:'bav',   label:'BAV'     },
+    { p:'sus',   label:'Suspension' }
+  ];
 
-  let html = `
-  <table class="setup-table">
-    <thead>
-      <tr>
-        <th>Tour</th>
-        <th><div class="aileron-header">Aileron<div class="aileron-sub"><span>AV</span><span>AR</span></div></div></th>
-        <th>Moteur</th>
-        <th>Freins</th>
-        <th>BAV</th>
-        <th>Suspension</th>
-        <th style="min-width:180px;">Retour Aileron AV</th>
-        <th style="min-width:180px;">Retour Aileron AR</th>
-        <th style="min-width:180px;">Retour Moteur</th>
-        <th style="min-width:180px;">Retour Freins</th>
-        <th style="min-width:180px;">Retour BAV</th>
-        <th style="min-width:180px;">Retour Suspension</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
+  let html = '';
   gpro.rows.forEach((row, idx) => {
     const isLatest = idx === latestIdx;
-    html += `<tr class="${isLatest ? 'row-latest' : ''}">`;
-    // Tour number
-    html += `<td><span class="setup-val">${idx + 1}</span></td>`;
-    // Ailerons (pair)
-    html += `<td><span class="setup-val aileron-pair">
-      <span>${row.vals.ailAv}</span>
-      <span style="color:var(--muted);">/</span>
-      <span>${row.vals.ailAr}</span>
-    </span></td>`;
-    // Other parts
-    ['mot','fre','bav','sus'].forEach(p => {
-      html += `<td><span class="setup-val">${row.vals[p]}</span></td>`;
-    });
-    // Feedback selects or badges
-    PARTS.forEach(p => {
+    html += `<div class="setup-row-card ${isLatest ? 'setup-row-latest' : ''}">
+      <div class="setup-row-header">
+        <span class="setup-row-num">Tour ${idx + 1}</span>
+        ${isLatest ? '<span class="setup-row-badge">En cours</span>' : ''}
+      </div>
+      <div class="setup-parts-grid">`;
+
+    PART_DISPLAY.forEach(({ p, label }) => {
+      const isEditable = isLatest && idx === 0;
+      const valHTML = isEditable
+        ? `<input type="number" class="setup-input-num" value="${row.vals[p]}" min="0" max="999"
+                  onchange="gpro_setVal(0,'${p}',+this.value)" />`
+        : `<span class="setup-val-big">${row.vals[p]}</span>`;
+
+      let fbHTML = '';
       if (isLatest) {
-        // Editable
-        const opts = FEEDBACK_OPTIONS.map(o =>
-          `<option value="${o.v}" ${row.feedbacks[p]===o.v?'selected':''}>${o.label}</option>`
-        ).join('');
-        html += `<td>
-          <select class="setup-select" onchange="gpro_setFeedback(${idx},'${p}',+this.value)" title="${getFbText(p, row.feedbacks[p])}">
-            <option value="" ${row.feedbacks[p]===null?'selected':''}>— Choisir —</option>
-            ${opts}
-          </select>
-          ${row.feedbacks[p]!==null ? `<div style="font-size:.64rem;color:var(--muted);margin-top:.3rem;max-width:200px;white-space:normal;line-height:1.3;">${getFbText(p, row.feedbacks[p])}</div>` : ''}
-        </td>`;
+        const opts = getFeedbackOptions(p).map(o => {
+          const sel = row.feedbacks[p] === o.v ? 'selected' : '';
+          return `<option value="${o.v}" ${sel}>${o.label}</option>`;
+        }).join('');
+        fbHTML = `<select class="setup-select-full" onchange="gpro_setFeedback(${idx},'${p}',+this.value)">
+          <option value="" ${row.feedbacks[p]===null?'selected':''}>— Retour pilote —</option>
+          ${opts}
+        </select>`;
       } else {
-        // Read-only badge
         const v = row.feedbacks[p];
-        html += `<td>
-          <span class="feedback-badge ${fbClass(v)}">${fbLabel(v)}</span>
-          ${v!==null?`<div style="font-size:.62rem;color:var(--muted);margin-top:.25rem;max-width:180px;white-space:normal;line-height:1.25;">${getFbText(p,v)}</div>`:''}
-        </td>`;
+        fbHTML = `<span class="feedback-badge ${fbClass(v)}">${fbLabel(v)}</span>
+          ${v !== null ? `<div class="fb-subtext">${getFbText(p, v)}</div>` : ''}`;
       }
+
+      html += `<div class="setup-part-cell">
+        <div class="setup-part-label">${label}</div>
+        <div class="setup-part-val">${valHTML}</div>
+        <div class="setup-part-fb">${fbHTML}</div>
+      </div>`;
     });
-    html += `</tr>`;
+
+    html += `</div></div>`;
   });
 
-  html += `</tbody></table>`;
   wrap.innerHTML = html;
 }
 
 function gpro_setFeedback(rowIdx, part, val) {
   gpro.rows[rowIdx].feedbacks[part] = val;
   renderGproTable();
+}
+function gpro_setVal(rowIdx, part, val) {
+  gpro.rows[rowIdx].vals[part] = Math.max(0, Math.min(999, val || 0));
 }
 
 function gpro_calculate() {
