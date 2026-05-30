@@ -319,6 +319,176 @@
     .gpro-placeholder .big-icon { font-size: 4rem; }
     .gpro-placeholder h3 { font-family: 'Rajdhani', sans-serif; font-size: 1.4rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text); }
 
+
+    /* ─── GPRO SETUP TOOL ─── */
+    .gpro-accent { --ga: #3b9ef5; --ga2: #5bb8ff; }
+    .setup-pilot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.4rem 1.6rem;
+      margin-bottom: 1.4rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      align-items: end;
+    }
+    @media(max-width:640px){ .setup-pilot-card { grid-template-columns: 1fr; } }
+    .marge-display {
+      background: rgba(59,158,245,.08);
+      border: 1px solid rgba(59,158,245,.25);
+      border-radius: 10px;
+      padding: .7rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+    }
+    .marge-display .marge-label { font-size: .7rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .marge-display .marge-value { font-family: 'Rajdhani', sans-serif; font-size: 1.6rem; font-weight: 700; color: #3b9ef5; }
+    .setup-table-wrap { overflow-x: auto; margin-bottom: 1.4rem; }
+    .setup-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 820px;
+    }
+    .setup-table thead tr th {
+      background: rgba(59,158,245,.1);
+      border-bottom: 2px solid rgba(59,158,245,.3);
+      padding: .6rem .8rem;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #3b9ef5;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .setup-table thead tr th:first-child { text-align: left; border-radius: 10px 0 0 0; }
+    .setup-table thead tr th:last-child  { border-radius: 0 10px 0 0; }
+    .setup-table tbody tr { transition: background .15s; }
+    .setup-table tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
+    .setup-table tbody tr.row-latest { background: rgba(59,158,245,.07); }
+    .setup-table tbody tr.row-latest td { border-top: 1px solid rgba(59,158,245,.2); border-bottom: 1px solid rgba(59,158,245,.2); }
+    .setup-table tbody td {
+      padding: .55rem .8rem;
+      text-align: center;
+      font-size: .9rem;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      vertical-align: middle;
+    }
+    .setup-table tbody td:first-child { text-align: left; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: .8rem; letter-spacing: .1em; color: var(--muted); padding-left: 1rem; }
+    .setup-val { font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 700; color: var(--text); }
+    .setup-val.aileron-pair { display: flex; gap: .4rem; justify-content: center; }
+    .feedback-badge {
+      display: inline-block;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: .18rem .55rem;
+      border-radius: 6px;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+    .fb-pos3 { background: rgba(231,76,60,.18);  color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+    .fb-pos2 { background: rgba(230,126,34,.18); color: #e67e22; border: 1px solid rgba(230,126,34,.4); }
+    .fb-pos1 { background: rgba(241,196,15,.18); color: #f1c40f; border: 1px solid rgba(241,196,15,.4); }
+    .fb-zero { background: rgba(46,204,113,.18); color: #2ecc71; border: 1px solid rgba(46,204,113,.4); }
+    .fb-neg1 { background: rgba(241,196,15,.18); color: #f1c40f; border: 1px solid rgba(241,196,15,.4); }
+    .fb-neg2 { background: rgba(230,126,34,.18); color: #e67e22; border: 1px solid rgba(230,126,34,.4); }
+    .fb-neg3 { background: rgba(231,76,60,.18);  color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+    .fb-na   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .setup-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .35rem .6rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: .8rem;
+      outline: none;
+      cursor: pointer;
+      width: 100%;
+      max-width: 220px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7485' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .6rem center;
+      padding-right: 1.8rem;
+      transition: border-color .2s;
+    }
+    .setup-select:focus { border-color: #3b9ef5; box-shadow: 0 0 0 3px rgba(59,158,245,.12); }
+    .setup-select option { background: #1a1e28; }
+    .setup-input-num {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .4rem .7rem;
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      outline: none;
+      width: 72px;
+      text-align: center;
+      -moz-appearance: textfield;
+      transition: border-color .2s;
+    }
+    .setup-input-num::-webkit-inner-spin-button,
+    .setup-input-num::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .setup-input-num:focus { border-color: #3b9ef5; }
+    .btn-calc-setup {
+      padding: .7rem 1.8rem;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: linear-gradient(135deg, #2980b9, #3b9ef5);
+      color: #fff;
+      transition: filter .2s, transform .15s;
+      box-shadow: 0 4px 20px rgba(59,158,245,.3);
+      white-space: nowrap;
+    }
+    .btn-calc-setup:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn-calc-setup:active { transform: translateY(1px); }
+    .btn-reset-setup {
+      padding: .7rem 1.2rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .9rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: color .2s, border-color .2s;
+    }
+    .btn-reset-setup:hover { color: var(--text); border-color: var(--red); color: var(--red); }
+    .converge-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(46,204,113,.12);
+      border: 1px solid rgba(46,204,113,.3);
+      border-radius: 20px;
+      padding: .3rem .9rem;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #2ecc71;
+      letter-spacing: .06em;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .setup-actions-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .aileron-header { display: flex; flex-direction: column; align-items: center; gap: .1rem; }
+    .aileron-sub { font-size: .6rem; color: var(--muted); letter-spacing: .06em; display: flex; gap: .8rem; }
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -431,8 +601,15 @@ const GAMES = {
   },
   gpro: {
     label: 'GPRO',
-    sections: [{ title: 'Bientôt disponible', items: [{ id: 'gpro-soon', icon: '🏎️', label: 'Outils GPRO', soon: true }]}],
-    defaultTool: 'gpro-placeholder'
+    sections: [
+      { title: 'Réglages', items: [
+        { id: 'gpro-setup', icon: '🔧', label: "Calculateur d'installation" }
+      ]},
+      { title: 'Bientôt disponible', items: [
+        { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
+      ]}
+    ],
+    defaultTool: 'gpro-setup'
   }
 };
 
@@ -506,9 +683,10 @@ function renderTool() {
     topbarTool.textContent = 'Dégradation pneus';
     content.innerHTML = toolTiresHTML();
     loadTireData();
-  } else if (currentTool === 'gpro-placeholder') {
-    topbarTool.textContent = 'GPRO';
-    content.innerHTML = `<div class="gpro-placeholder fadein"><div class="big-icon">🏗️</div><h3>En cours de développement</h3><p>Les outils GPRO arrivent prochainement.</p></div>`;
+  } else if (currentTool === 'gpro-setup') {
+    topbarTool.textContent = "Calculateur d'installation";
+    content.innerHTML = toolGproSetupHTML();
+    initGproSetup();
   }
 }
 
@@ -972,6 +1150,345 @@ function calcC7Projection(c7val) {
     box.innerHTML = `<span class="placeholder">—</span>`;
   }
 }
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : CALCULATEUR D'INSTALLATION
+══════════════════════════════════════ */
+
+// State
+let gpro = {
+  marge: null,
+  rows: [],      // { vals:{ailAv,ailAr,mot,fre,bav,sus}, feedbacks:{...}, bounds:{...} }
+};
+
+const PARTS = ['ailAv','ailAr','mot','fre','bav','sus'];
+const PART_LABELS = { ailAv:'Ail. Av', ailAr:'Ail. Ar', mot:'Moteur', fre:'Freins', bav:'BAV', sus:'Suspension' };
+
+const FEEDBACK_OPTIONS = [
+  { v: 3,  label: '+3' }, { v: 2, label: '+2' }, { v: 1, label: '+1' },
+  { v: 0,  label: '0 — Satisfait' },
+  { v:-1, label: '-1' }, { v:-2, label: '-2' }, { v:-3, label: '-3' }
+];
+
+// Feedback texts per part
+const FB_TEXTS = {
+  ail: {
+     3:'Manque vraiment beaucoup de vitesse en ligne droite',
+     2:'La voiture manque un peu de vitesse en ligne droite',
+     1:'Pourrait avoir un peu plus de vitesse en ligne droite',
+     0:'Satisfait',
+    '-1':'Manque un peu d'adhérence dans les courbes',
+    '-2':'Très instable dans de nombreux virages',
+    '-3':'Aucune adhérence, impossible à conduire'
+  },
+  mot: {
+     3:'Favoriser beaucoup plus les bas régimes !',
+     2:'Le régime moteur est trop élevé',
+     1:'Favoriser un peu plus les bas régimes',
+     0:'Satisfait',
+    '-1':'Pas assez de puissance dans les lignes droites',
+    '-2':'La puissance moteur n'est pas suffisante',
+    '-3':'Favoriser beaucoup plus les hauts régimes'
+  },
+  fre: {
+     3:'Déplacer l'équilibre beaucoup plus à l'arrière',
+     2:'Efficacité améliorée en déplaçant l'équilibre vers l'arrière',
+     1:'Balance un peu plus à l'arrière',
+     0:'Satisfait',
+    '-1':'Équilibre un peu plus à l'avant',
+    '-2':'Efficacité améliorée en déplaçant l'équilibre vers l'avant',
+    '-3':'Beaucoup plus confortable avec l'équilibre vers l'avant'
+  },
+  bav: {
+     3:'Taux beaucoup plus faible entre les engrenages',
+     2:'Le rapport de transmission est trop élevé',
+     1:'Raccourcissez les rapports de boîte',
+     0:'Satisfait',
+    '-1':'Trop souvent dans le rouge — rapport un peu plus élevé',
+    '-2':'Le rapport de transmission est trop faible',
+    '-3':'Moteur va exploser — rapport beaucoup plus élevé'
+  },
+  sus: {
+     3:'Beaucoup trop rigide — baisser fortement la rigidité',
+     2:'La rigidité de suspension est trop élevée',
+     1:'Trop rigide — baisser un peu la rigidité',
+     0:'Satisfait',
+    '-1':'Suspension un peu plus rigide pour aller plus vite',
+    '-2':'La rigidité de suspension est trop faible',
+    '-3':'La rigidité devrait être beaucoup plus élevée'
+  }
+};
+function getFbText(part, val) {
+  const key = part === 'ailAv' || part === 'ailAr' ? 'ail' :
+              part === 'mot' ? 'mot' :
+              part === 'fre' ? 'fre' :
+              part === 'bav' ? 'bav' : 'sus';
+  return FB_TEXTS[key][val] || '';
+}
+
+function toolGproSetupHTML() {
+  return `
+  <div class="tool-panel" style="max-width:1100px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Calculateur d'installation</h2>
+      <p>Trouvez les réglages optimaux par bissection à partir des retours pilote. Commencez toujours à 500 sur tous les réglages.</p>
+    </div>
+
+    <!-- PILOTE -->
+    <div class="setup-pilot-card fadein fadein-d1">
+      <div class="field">
+        <label>Connaissances techniques du pilote</label>
+        <input type="number" id="gpro-tech" placeholder="ex : 139" min="0" max="300" step="1"
+               oninput="calcMarge()" class="field input" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:500;outline:none;-moz-appearance:textfield;" />
+      </div>
+      <div class="field">
+        <label>Expérience du pilote</label>
+        <input type="number" id="gpro-exp" placeholder="ex : 25" min="0" max="300" step="1"
+               oninput="calcMarge()" class="field input" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:500;outline:none;-moz-appearance:textfield;" />
+      </div>
+      <div class="marge-display">
+        <span class="marge-label">Marge d'acceptation</span>
+        <span class="marge-value" id="gpro-marge-val">—</span>
+        <span style="font-size:.68rem;color:var(--muted);">135 − (0.3 × tech) − (0.1 × exp)</span>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="setup-actions-row fadein fadein-d1">
+      <button class="btn-calc-setup" onclick="gpro_calculate()">⚡ Calculer le prochain réglage</button>
+      <button class="btn-reset-setup" onclick="gpro_reset()">↺ Réinitialiser</button>
+      <span id="gpro-converge-badge" style="display:none;" class="converge-badge">✓ Réglage convergé !</span>
+    </div>
+
+    <!-- TABLE -->
+    <div class="setup-table-wrap fadein fadein-d2" id="gpro-table-wrap">
+      <!-- rendered by JS -->
+    </div>
+  </div>`;
+}
+
+function initGproSetup() {
+  gpro.rows = [];
+  gpro.marge = null;
+  // First row: all 500, awaiting feedback
+  gpro.rows.push(makeRow({ ailAv:500, ailAr:500, mot:500, fre:500, bav:500, sus:500 }, null));
+  renderGproTable();
+  // Restore marge inputs if stored
+  const te = document.getElementById('gpro-tech');
+  const ex = document.getElementById('gpro-exp');
+  if (te) te.addEventListener('keydown', e => { if(e.key==='Enter') gpro_calculate(); });
+  if (ex) ex.addEventListener('keydown', e => { if(e.key==='Enter') gpro_calculate(); });
+}
+
+function makeRow(vals, bounds) {
+  return {
+    vals: { ...vals },
+    feedbacks: { ailAv:null, ailAr:null, mot:null, fre:null, bav:null, sus:null },
+    bounds: bounds || {
+      ailAv:{min:0,max:999}, ailAr:{min:0,max:999},
+      mot:{min:0,max:999}, fre:{min:0,max:999},
+      bav:{min:0,max:999}, sus:{min:0,max:999}
+    }
+  };
+}
+
+function calcMarge() {
+  const tech = parseFloat(document.getElementById('gpro-tech').value);
+  const exp  = parseFloat(document.getElementById('gpro-exp').value);
+  const el   = document.getElementById('gpro-marge-val');
+  if (!isNaN(tech) && !isNaN(exp)) {
+    const m = Math.round(135 - (0.3 * tech) - (0.1 * exp));
+    gpro.marge = Math.max(0, m);
+    el.textContent = gpro.marge;
+    el.style.color = gpro.marge < 30 ? '#2ecc71' : gpro.marge < 70 ? '#f1c40f' : '#e74c3c';
+  } else {
+    gpro.marge = null;
+    el.textContent = '—';
+    el.style.color = '#3b9ef5';
+  }
+}
+
+function fbClass(v) {
+  if (v === null) return 'fb-na';
+  if (v ===  3) return 'fb-pos3';
+  if (v ===  2) return 'fb-pos2';
+  if (v ===  1) return 'fb-pos1';
+  if (v ===  0) return 'fb-zero';
+  if (v === -1) return 'fb-neg1';
+  if (v === -2) return 'fb-neg2';
+  if (v === -3) return 'fb-neg3';
+  return 'fb-na';
+}
+function fbLabel(v) {
+  if (v === null) return '—';
+  if (v === 0) return '0 ✓';
+  return (v > 0 ? '+' : '') + v;
+}
+
+function renderGproTable() {
+  const wrap = document.getElementById('gpro-table-wrap');
+  if (!wrap) return;
+  const latestIdx = gpro.rows.length - 1;
+
+  let html = `
+  <table class="setup-table">
+    <thead>
+      <tr>
+        <th>Tour</th>
+        <th><div class="aileron-header">Aileron<div class="aileron-sub"><span>AV</span><span>AR</span></div></div></th>
+        <th>Moteur</th>
+        <th>Freins</th>
+        <th>BAV</th>
+        <th>Suspension</th>
+        <th style="min-width:180px;">Retour Aileron AV</th>
+        <th style="min-width:180px;">Retour Aileron AR</th>
+        <th style="min-width:180px;">Retour Moteur</th>
+        <th style="min-width:180px;">Retour Freins</th>
+        <th style="min-width:180px;">Retour BAV</th>
+        <th style="min-width:180px;">Retour Suspension</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  gpro.rows.forEach((row, idx) => {
+    const isLatest = idx === latestIdx;
+    html += `<tr class="${isLatest ? 'row-latest' : ''}">`;
+    // Tour number
+    html += `<td><span class="setup-val">${idx + 1}</span></td>`;
+    // Ailerons (pair)
+    html += `<td><span class="setup-val aileron-pair">
+      <span>${row.vals.ailAv}</span>
+      <span style="color:var(--muted);">/</span>
+      <span>${row.vals.ailAr}</span>
+    </span></td>`;
+    // Other parts
+    ['mot','fre','bav','sus'].forEach(p => {
+      html += `<td><span class="setup-val">${row.vals[p]}</span></td>`;
+    });
+    // Feedback selects or badges
+    PARTS.forEach(p => {
+      if (isLatest) {
+        // Editable
+        const opts = FEEDBACK_OPTIONS.map(o =>
+          `<option value="${o.v}" ${row.feedbacks[p]===o.v?'selected':''}>${o.label}</option>`
+        ).join('');
+        html += `<td>
+          <select class="setup-select" onchange="gpro_setFeedback(${idx},'${p}',+this.value)" title="${getFbText(p, row.feedbacks[p])}">
+            <option value="" ${row.feedbacks[p]===null?'selected':''}>— Choisir —</option>
+            ${opts}
+          </select>
+          ${row.feedbacks[p]!==null ? `<div style="font-size:.64rem;color:var(--muted);margin-top:.3rem;max-width:200px;white-space:normal;line-height:1.3;">${getFbText(p, row.feedbacks[p])}</div>` : ''}
+        </td>`;
+      } else {
+        // Read-only badge
+        const v = row.feedbacks[p];
+        html += `<td>
+          <span class="feedback-badge ${fbClass(v)}">${fbLabel(v)}</span>
+          ${v!==null?`<div style="font-size:.62rem;color:var(--muted);margin-top:.25rem;max-width:180px;white-space:normal;line-height:1.25;">${getFbText(p,v)}</div>`:''}
+        </td>`;
+      }
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+function gpro_setFeedback(rowIdx, part, val) {
+  gpro.rows[rowIdx].feedbacks[part] = val;
+  renderGproTable();
+}
+
+function gpro_calculate() {
+  if (!gpro.marge && gpro.marge !== 0) {
+    alert('Veuillez d'abord renseigner les connaissances techniques et l'expérience du pilote pour calculer la marge d'acceptation.');
+    return;
+  }
+  const latestIdx = gpro.rows.length - 1;
+  const row = gpro.rows[latestIdx];
+
+  // Check all feedbacks filled
+  for (const p of PARTS) {
+    if (row.feedbacks[p] === null) {
+      alert('Veuillez renseigner tous les retours pilote avant de calculer.');
+      return;
+    }
+  }
+
+  const marge = gpro.marge;
+  const newVals = {};
+  const newBounds = {};
+  let allSatisfied = true;
+
+  PARTS.forEach(p => {
+    const fb  = row.feedbacks[p];
+    const val = row.vals[p];
+    const bnd = { ...row.bounds[p] };
+
+    if (fb !== 0) allSatisfied = false;
+
+    // Update bounds based on feedback direction
+    if (fb > 0) {
+      // Value too high → new max
+      bnd.max = val;
+    } else if (fb < 0) {
+      // Value too low → new min
+      bnd.min = val;
+    } else {
+      // Satisfied: narrow bounds around satisfaction zone
+      // True target is within [val - marge, val + marge]
+      bnd.min = Math.max(bnd.min, val - marge);
+      bnd.max = Math.min(bnd.max, val + marge);
+    }
+
+    newBounds[p] = bnd;
+
+    if (fb === 0) {
+      // Already in zone — try to find center: bisect toward midpoint of remaining bounds
+      const mid = Math.round((bnd.min + bnd.max) / 2);
+      // If current val is very close to mid, try slight nudge toward high end
+      if (Math.abs(val - mid) <= 1) {
+        newVals[p] = val; // converged
+      } else {
+        newVals[p] = clamp(mid, 0, 999);
+      }
+    } else if (fb > 0) {
+      // Need to go lower — jump toward lower bound, bisect
+      const target = Math.round((bnd.min + bnd.max) / 2);
+      newVals[p] = clamp(target, 0, 999);
+    } else {
+      // Need to go higher — bisect upward
+      const target = Math.round((bnd.min + bnd.max) / 2);
+      newVals[p] = clamp(target, 0, 999);
+    }
+  });
+
+  // Check convergence: if new vals == current vals on all parts
+  const converged = PARTS.every(p => newVals[p] === row.vals[p]);
+  document.getElementById('gpro-converge-badge').style.display = converged ? 'inline-flex' : 'none';
+
+  if (!converged) {
+    gpro.rows.push(makeRow(newVals, newBounds));
+  }
+
+  renderGproTable();
+  // Scroll to bottom
+  setTimeout(() => {
+    const wrap = document.getElementById('gpro-table-wrap');
+    if (wrap) wrap.scrollLeft = 0;
+    wrap.closest('.app-content').scrollTop = wrap.closest('.app-content').scrollHeight;
+  }, 50);
+}
+
+function gpro_reset() {
+  gpro.rows = [makeRow({ ailAv:500, ailAr:500, mot:500, fre:500, bav:500, sus:500 }, null)];
+  document.getElementById('gpro-converge-badge').style.display = 'none';
+  renderGproTable();
+}
+
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
 </script>
 </body>
 </html>
