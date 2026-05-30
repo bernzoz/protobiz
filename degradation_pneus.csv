@@ -49,7 +49,7 @@ Kumho NE;Neige;Neige;Toutes;Froid;;;;;;
 Kumho PC;Dur;Asphalte;Pluie;Chaud;;;;;;
 Kumho TP;Medium/dur;Terre;Pluie;Chaud/Froid;;;;;;
 Kumho PF;Medium;Asphalte;Pluie;Froid;;;;;;
-Kumho TS;Tres dur;Terre;Sec;Chaud/Froid;0.23;;0.25;;;
+Kumho TS;Tres dur;Terre;Sec;Chaud/Froid;0.23;0.20;0.25;;;
 Dmack IC;Dur;Asphalte;Intermediaire;Chaud;;;;;;
 Dmack TI;Medium/dur;Terre;Intermediaire;Chaud/Froid;;;;;;
 Dmack IF;Medium/dur;Asphalte;Intermediaire;Froid;;;;;;
