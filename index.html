@@ -1253,6 +1253,70 @@ function calcC7Projection(c7val) {
    OUTIL GPRO : CALCULATEUR D'INSTALLATION
 ══════════════════════════════════════ */
 
+const TRACKS = [
+  { flag:"🇦🇹", name:"A1-Ring", ailAv:440, ailAr:310, mot:950, fre:660, bav:640, sus:650 },
+  { flag:"🇦🇺", name:"ADELAIDE", ailAv:570, ailAr:660, mot:720, fre:290, bav:440, sus:860 },
+  { flag:"🇫🇮", name:"Ahvenisto", ailAv:950, ailAr:900, mot:620, fre:690, bav:610, sus:390 },
+  { flag:"🇸🇪", name:"Anderstorp", ailAv:390, ailAr:380, mot:940, fre:740, bav:470, sus:250 },
+  { flag:"🇺🇸", name:"Austin", ailAv:580, ailAr:490, mot:780, fre:520, bav:460, sus:890 },
+  { flag:"🇩🇪", name:"Avus", ailAv:430, ailAr:400, mot:860, fre:420, bav:260, sus:950 },
+  { flag:"🇦🇿", name:"Baku City", ailAv:440, ailAr:440, mot:830, fre:610, bav:550, sus:930 },
+  { flag:"🇪🇸", name:"Barcelona", ailAv:600, ailAr:540, mot:880, fre:490, bav:530, sus:490 },
+  { flag:"🇬🇧", name:"Brands Hatch", ailAv:570, ailAr:540, mot:870, fre:370, bav:580, sus:800 },
+  { flag:"🇧🇷", name:"Brasilia", ailAv:520, ailAr:690, mot:560, fre:660, bav:710, sus:930 },
+  { flag:"🇨🇭", name:"Bremgarten", ailAv:690, ailAr:710, mot:810, fre:550, bav:570, sus:730 },
+  { flag:"🇨🇿", name:"Brno", ailAv:480, ailAr:590, mot:640, fre:360, bav:370, sus:590 },
+  { flag:"🇷🇴", name:"Bucharest Ring", ailAv:370, ailAr:360, mot:900, fre:670, bav:460, sus:910 },
+  { flag:"🇦🇷", name:"Buenos Aires", ailAv:890, ailAr:870, mot:700, fre:280, bav:500, sus:830 },
+  { flag:"🇵🇹", name:"Estoril", ailAv:450, ailAr:540, mot:890, fre:250, bav:570, sus:750 },
+  { flag:"🇮🇹", name:"Fiorano", ailAv:520, ailAr:550, mot:810, fre:300, bav:210, sus:980 },
+  { flag:"🇯🇵", name:"Fuji", ailAv:410, ailAr:330, mot:820, fre:600, bav:560, sus:670 },
+  { flag:"🇭🇷", name:"Grobnik", ailAv:670, ailAr:680, mot:530, fre:470, bav:610, sus:640 },
+  { flag:"🇩🇪", name:"Hockenheim", ailAv:310, ailAr:720, mot:860, fre:320, bav:650, sus:440 },
+  { flag:"🇭🇺", name:"Hungaroring", ailAv:720, ailAr:940, mot:610, fre:540, bav:290, sus:560 },
+  { flag:"🇸🇲", name:"Imola", ailAv:430, ailAr:570, mot:840, fre:610, bav:500, sus:650 },
+  { flag:"🇺🇸", name:"Indianapolis", ailAv:270, ailAr:480, mot:870, fre:510, bav:460, sus:590 },
+  { flag:"🇺🇸", name:"Indianapolis Oval", ailAv:170, ailAr:150, mot:850, fre:110, bav:690, sus:360 },
+  { flag:"🇧🇷", name:"Interlagos", ailAv:410, ailAr:710, mot:770, fre:570, bav:390, sus:440 },
+  { flag:"🇮🇳", name:"Irungattukottai", ailAv:540, ailAr:800, mot:660, fre:600, bav:470, sus:670 },
+  { flag:"🇹🇷", name:"Istanbul", ailAv:500, ailAr:450, mot:720, fre:670, bav:410, sus:770 },
+  { flag:"🇸🇦", name:"Jeddah", ailAv:320, ailAr:390, mot:590, fre:590, bav:510, sus:550 },
+  { flag:"🇪🇸", name:"Jerez", ailAv:750, ailAr:790, mot:800, fre:620, bav:560, sus:460 },
+  { flag:"🇩🇰", name:"Jyllands-Ringen", ailAv:780, ailAr:840, mot:500, fre:570, bav:600, sus:630 },
+  { flag:"🇱🇹", name:"Kaunas", ailAv:490, ailAr:510, mot:860, fre:510, bav:530, sus:500 },
+  { flag:"🇿🇦", name:"Kyalami", ailAv:830, ailAr:710, mot:710, fre:560, bav:360, sus:860 },
+  { flag:"🇺🇸", name:"Laguna Seca", ailAv:360, ailAr:740, mot:540, fre:580, bav:480, sus:220 },
+  { flag:"🇫🇷", name:"Magny Cours", ailAv:570, ailAr:480, mot:750, fre:290, bav:440, sus:690 },
+  { flag:"🇦🇺", name:"Melbourne", ailAv:430, ailAr:580, mot:830, fre:600, bav:590, sus:470 },
+  { flag:"🇲🇽", name:"Mexico City", ailAv:560, ailAr:740, mot:950, fre:430, bav:550, sus:500 },
+  { flag:"🇲🇨", name:"Monte Carlo", ailAv:880, ailAr:990, mot:520, fre:450, bav:230, sus:660 },
+  { flag:"🇨🇦", name:"Montreal", ailAv:260, ailAr:650, mot:910, fre:580, bav:560, sus:370 },
+  { flag:"🇮🇹", name:"Monza", ailAv:250, ailAr:350, mot:950, fre:470, bav:710, sus:730 },
+  { flag:"🇮🇹", name:"Mugello", ailAv:390, ailAr:770, mot:980, fre:910, bav:750, sus:730 },
+  { flag:"🇮🇳", name:"New Delhi", ailAv:440, ailAr:830, mot:690, fre:490, bav:550, sus:300 },
+  { flag:"🇩🇪", name:"Nurburgring", ailAv:750, ailAr:620, mot:650, fre:590, bav:450, sus:330 },
+  { flag:"🇦🇹", name:"Oesterreichring", ailAv:500, ailAr:570, mot:880, fre:510, bav:570, sus:620 },
+  { flag:"🇫🇷", name:"Paul Ricard", ailAv:530, ailAr:360, mot:970, fre:270, bav:630, sus:730 },
+  { flag:"🇵🇹", name:"Portimao", ailAv:810, ailAr:760, mot:540, fre:460, bav:330, sus:460 },
+  { flag:"🇵🇱", name:"Poznan", ailAv:660, ailAr:620, mot:660, fre:290, bav:510, sus:610 },
+  { flag:"🇦🇷", name:"Rafaela Oval", ailAv:280, ailAr:270, mot:780, fre:150, bav:570, sus:450 },
+  { flag:"🇧🇭", name:"Sakhir", ailAv:210, ailAr:370, mot:560, fre:720, bav:440, sus:360 },
+  { flag:"🇲🇾", name:"Sepang", ailAv:490, ailAr:690, mot:820, fre:610, bav:600, sus:630 },
+  { flag:"🇬🇷", name:"Serres", ailAv:880, ailAr:870, mot:580, fre:480, bav:330, sus:700 },
+  { flag:"🇨🇳", name:"Shanghai", ailAv:450, ailAr:420, mot:760, fre:560, bav:290, sus:400 },
+  { flag:"🇬🇧", name:"Silverstone", ailAv:340, ailAr:470, mot:920, fre:590, bav:680, sus:550 },
+  { flag:"🇸🇬", name:"Singapore", ailAv:800, ailAr:710, mot:590, fre:540, bav:460, sus:900 },
+  { flag:"🇸🇰", name:"Slovakiaring", ailAv:780, ailAr:700, mot:590, fre:600, bav:330, sus:570 },
+  { flag:"🇷🇺", name:"Sochi", ailAv:690, ailAr:710, mot:790, fre:570, bav:540, sus:600 },
+  { flag:"🇧🇪", name:"Spa", ailAv:520, ailAr:670, mot:970, fre:380, bav:500, sus:590 },
+  { flag:"🇯🇵", name:"Suzuka", ailAv:450, ailAr:560, mot:860, fre:500, bav:410, sus:680 },
+  { flag:"🇪🇸", name:"Valencia", ailAv:890, ailAr:800, mot:600, fre:650, bav:490, sus:470 },
+  { flag:"🇦🇪", name:"Yas Marina", ailAv:750, ailAr:700, mot:640, fre:530, bav:330, sus:580 },
+  { flag:"🇰🇷", name:"Yeongam", ailAv:790, ailAr:710, mot:630, fre:670, bav:570, sus:580 },
+  { flag:"🇳🇱", name:"Zandvoort", ailAv:480, ailAr:730, mot:860, fre:400, bav:640, sus:840 },
+  { flag:"🇧🇪", name:"Zolder", ailAv:700, ailAr:650, mot:830, fre:440, bav:490, sus:690 }
+];
+
 // State
 let gpro = {
   marge: null,
@@ -1354,6 +1418,19 @@ function toolGproSetupHTML() {
       </div>
     </div>
 
+    <!-- CIRCUIT SELECTOR -->
+    <div class="calc-card fadein fadein-d1" style="margin-bottom:1.4rem;border-color:rgba(59,158,245,.2);">
+      <div class="card-title" style="color:#3b9ef5;">
+        <span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🏁</span>
+        Circuit
+      </div>
+      <div class="field" style="margin:0;">
+        <select id="gpro-track-select" onchange="gpro_selectTrack()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+          <option value="">— Sélectionnez un circuit —</option>
+        </select>
+      </div>
+    </div>
+
     <!-- ACTIONS -->
     <div class="setup-actions-row fadein fadein-d1">
       <button class="btn-calc-setup" onclick="gpro_calculate()">⚡ Calculer le prochain réglage</button>
@@ -1371,14 +1448,28 @@ function toolGproSetupHTML() {
 function initGproSetup() {
   gpro.rows = [];
   gpro.marge = null;
-  // First row: all 500, awaiting feedback
   gpro.rows.push(makeRow({ ailAv:500, ailAr:500, mot:500, fre:500, bav:500, sus:500 }, null));
   renderGproTable();
-  // Restore marge inputs if stored
+  // Populate track selector
+  const sel = document.getElementById('gpro-track-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Sélectionnez un circuit —</option>' +
+      TRACKS.map((t, i) => `<option value="${i}">${t.flag} ${t.name}</option>`).join('');
+  }
   const te = document.getElementById('gpro-tech');
   const ex = document.getElementById('gpro-exp');
   if (te) te.addEventListener('keydown', e => { if(e.key==='Enter') gpro_calculate(); });
   if (ex) ex.addEventListener('keydown', e => { if(e.key==='Enter') gpro_calculate(); });
+}
+
+function gpro_selectTrack() {
+  const sel = document.getElementById('gpro-track-select');
+  const idx = parseInt(sel.value);
+  if (isNaN(idx)) return;
+  const t = TRACKS[idx];
+  // Apply track base values to row 0
+  gpro.rows[0].vals = { ailAv: t.ailAv, ailAr: t.ailAr, mot: t.mot, fre: t.fre, bav: t.bav, sus: t.sus };
+  renderGproTable();
 }
 
 function makeRow(vals, bounds) {
