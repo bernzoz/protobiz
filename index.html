@@ -587,6 +587,178 @@
       line-height: 1.3;
     }
 
+
+    /* ── GPRO TEST POINTS ── */
+    .tp-col-head {
+      padding: .6rem .5rem;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      text-align: center;
+      border-bottom: 2px solid;
+    }
+    .tp-cell {
+      padding: .75rem .5rem;
+      text-align: center;
+    }
+
+    .testpts-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 .35rem;
+    }
+    .testpts-table th {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      padding: .6rem 1rem;
+      text-align: center;
+    }
+    .testpts-table th:first-child { text-align: left; }
+    .testpts-th-pow  { color: #e74c3c; border-bottom: 2px solid rgba(231,76,60,.4); }
+    .testpts-th-man  { color: #3b9ef5; border-bottom: 2px solid rgba(59,158,245,.4); }
+    .testpts-th-acc  { color: #2ecc71; border-bottom: 2px solid rgba(46,204,113,.4); }
+    .testpts-th-prio { color: var(--muted); border-bottom: 2px solid var(--border); padding-left:0; }
+    .testpts-table tbody tr {
+      background: var(--surface);
+      border-radius: 10px;
+      transition: background .15s;
+    }
+    .testpts-table tbody tr:hover { background: var(--surface2); }
+    .testpts-table tbody td {
+      padding: .65rem 1rem;
+      vertical-align: middle;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .testpts-table tbody td:first-child {
+      border-left: 1px solid var(--border);
+      border-radius: 10px 0 0 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .88rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .testpts-table tbody td:last-child {
+      border-right: 1px solid var(--border);
+      border-radius: 0 10px 10px 0;
+    }
+    .testpts-val {
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      transition: color .25s;
+    }
+    .testpts-val.pow { color: #e74c3c; }
+    .testpts-val.man { color: #3b9ef5; }
+    .testpts-val.acc { color: #2ecc71; }
+    .testpts-val.zero { color: var(--border); font-size: .9rem; }
+    .testpts-total-row td {
+      background: var(--surface2) !important;
+      border-top: 2px solid rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.1) !important;
+    }
+    .testpts-total-row td:first-child {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .78rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .testpts-total-val {
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .testpts-total-val.pow { color: #e74c3c; }
+    .testpts-total-val.man { color: #3b9ef5; }
+    .testpts-total-val.acc { color: #2ecc71; }
+    .testpts-tours-input {
+      background: var(--surface2);
+      border: 1px solid rgba(59,158,245,.4);
+      border-radius: 10px;
+      padding: .6rem 1rem;
+      color: #3b9ef5;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      outline: none;
+      width: 90px;
+      text-align: center;
+      -moz-appearance: textfield;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .testpts-tours-input::-webkit-inner-spin-button,
+    .testpts-tours-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .testpts-tours-input:focus { border-color: #3b9ef5; box-shadow: 0 0 0 3px rgba(59,158,245,.15); }
+    .testpts-relais-select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .7rem 1rem;
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-size: .88rem;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7485' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .8rem center;
+      padding-right: 2rem;
+      transition: border-color .2s;
+    }
+    .testpts-relais-select:focus { border-color: #3b9ef5; }
+    .testpts-relais-select option { background: #1a1e28; }
+    .relais-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      transition: border-color .2s;
+    }
+    .relais-card:focus-within { border-color: rgba(59,158,245,.4); }
+    .relais-card-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: #3b9ef5;
+    }
+    .relais-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .8rem;
+      margin-bottom: 1.4rem;
+    }
+    @media(max-width:700px){ .relais-grid { grid-template-columns: repeat(2,1fr); } }
+    .testpts-section-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 1.6rem 0 .8rem;
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+    }
+    .testpts-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -701,7 +873,8 @@ const GAMES = {
     label: 'GPRO',
     sections: [
       { title: 'Réglages', items: [
-        { id: 'gpro-setup', icon: '🔧', label: "Calculateur d'installation" }
+        { id: 'gpro-setup',  icon: '🔧', label: "Calculateur d'installation" },
+        { id: 'gpro-testpts', icon: '🧪', label: "Points de test" }
       ]},
       { title: 'Bientôt disponible', items: [
         { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
@@ -785,6 +958,10 @@ function renderTool() {
     topbarTool.textContent = "Calculateur d'installation";
     content.innerHTML = toolGproSetupHTML();
     initGproSetup();
+  } else if (currentTool === 'gpro-testpts') {
+    topbarTool.textContent = "Points de test";
+    content.innerHTML = toolGproTestPtsHTML();
+    initTestPts();
   }
 }
 
@@ -1672,6 +1849,92 @@ function gpro_reset() {
 }
 
 function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : POINTS DE TEST
+══════════════════════════════════════ */
+
+const TEST_PTS_BASE = [
+  { label: "Pas de priorité particulière",     pow: 0.265, man: 0.265, acc: 0.265 },
+  { label: "Vitesse de pointe",                pow: 0.645, man: 0.081, acc: 0.081 },
+  { label: "Virages",                          pow: 0.081, man: 0.645, acc: 0.081 },
+  { label: "Épingles à cheveux",     pow: 0.081, man: 0.081, acc: 0.645 },
+  { label: "Freinage",                         pow: 0.202, man: 0.404, acc: 0.202 },
+  { label: "Dépassement",                 pow: 0.404, man: 0.202, acc: 0.202 },
+  { label: "Chicanes",                         pow: 0.202, man: 0.202, acc: 0.404 },
+  { label: "Tester les limites de la voiture", pow: 0.020, man: 0.020, acc: 0.020 },
+  { label: "Réglages",                    pow: 0.020, man: 0.020, acc: 0.020 }
+];
+
+function toolGproTestPtsHTML() {
+  return `
+  <div class="tool-panel" style="max-width:740px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Points de test</h2>
+      <p>Points de test obtenus par priorité de recherche selon le nombre de tours effectués.</p>
+    </div>
+
+    <div class="calc-card fadein fadein-d1" style="padding:0;overflow:hidden;border-color:rgba(59,158,245,.25);">
+
+      <!-- HEADER: Tour input -->
+      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--border);background:rgba(59,158,245,.05);">
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.88rem;letter-spacing:.15em;text-transform:uppercase;color:#3b9ef5;">
+          Nombre de tours
+        </div>
+        <input type="number" id="testpts-tours" class="testpts-tours-input"
+               value="1" min="1" max="99" step="1" oninput="updateTestPts()" />
+      </div>
+
+      <!-- COLUMN HEADERS -->
+      <div style="display:grid;grid-template-columns:1fr 110px 110px 110px;gap:0;border-bottom:2px solid rgba(59,158,245,.2);">
+        <div style="padding:.6rem 1.4rem;font-family:'Rajdhani',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);">Priorité de recherche</div>
+        <div class="tp-col-head" style="color:#e74c3c;border-color:rgba(231,76,60,.4);">Puissance</div>
+        <div class="tp-col-head" style="color:#3b9ef5;border-color:rgba(59,158,245,.4);">Maniabilité</div>
+        <div class="tp-col-head" style="color:#2ecc71;border-color:rgba(46,204,113,.4);">Accélération</div>
+      </div>
+
+      <!-- ROWS -->
+      <div id="testpts-rows"></div>
+
+    </div>
+  </div>`;
+}
+
+function initTestPts() {
+  updateTestPts();
+}
+
+function updateTestPts() {
+  const el = document.getElementById('testpts-tours');
+  const tours = Math.max(1, parseInt(el?.value) || 1);
+  const container = document.getElementById('testpts-rows');
+  if (!container) return;
+
+  const fmtVal = (v) => {
+    if (v === 0) return `<span style="color:var(--border);font-size:.9rem;font-family:'Rajdhani',sans-serif;font-weight:700;">0</span>`;
+    return `<span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1.05rem;">${(v * tours).toFixed(1)}</span>`;
+  };
+
+  let html = '';
+  TEST_PTS_BASE.forEach((row, i) => {
+    const even = i % 2 === 0;
+    html += `
+    <div style="display:grid;grid-template-columns:1fr 110px 110px 110px;align-items:center;
+                border-bottom:1px solid var(--border);
+                background:${even ? 'transparent' : 'rgba(255,255,255,.02)'};
+                transition:background .15s;"
+         onmouseover="this.style.background='rgba(59,158,245,.05)'"
+         onmouseout="this.style.background='${even ? 'transparent' : 'rgba(255,255,255,.02)'}'">
+      <div style="padding:.75rem 1.4rem;font-size:.88rem;color:var(--text);">${row.label}</div>
+      <div class="tp-cell" style="color:#e74c3c;">${fmtVal(row.pow)}</div>
+      <div class="tp-cell" style="color:#3b9ef5;">${fmtVal(row.man)}</div>
+      <div class="tp-cell" style="color:#2ecc71;">${fmtVal(row.acc)}</div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
 
 </script>
 </body>
