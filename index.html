@@ -1989,7 +1989,7 @@ function toolChoixPneusHTML() {
     </div>
   `).join('');
 
-  return \`
+  return `
   <div class="tool-panel" style="max-width:860px;">
     <div class="tool-header fadein">
       <h2><span class="accent-bar"></span> Choix Pneus</h2>
@@ -1998,7 +1998,7 @@ function toolChoixPneusHTML() {
 
     <div class="calc-card fadein fadein-d1" style="margin-bottom:1.6rem;">
       <div class="card-title">🌤️ Conditions météo</div>
-      <div class="meteo-grid" id="meteo-grid">\${btns}</div>
+      <div class="meteo-grid" id="meteo-grid">${btns}</div>
     </div>
 
     <div class="fadein fadein-d2">
@@ -2010,7 +2010,7 @@ function toolChoixPneusHTML() {
         </div>
       </div>
     </div>
-  </div>\`;
+  </div>`;
 }
 
 function initChoixPneus() {
@@ -2029,22 +2029,22 @@ function selectMeteo(id) {
   panel.classList.add('has-result');
   panel.style.borderColor = col.border;
   panel.style.background = col.bg;
-  panel.innerHTML = \`
+  panel.innerHTML = `
     <div class="pneu-result-meteo">
-      <img src="\${m.logo}" alt="\${m.label}" />
-      <div class="meteo-name">\${m.label}</div>
+      <img src="${m.logo}" alt="${m.label}" />
+      <div class="meteo-name">${m.label}</div>
     </div>
     <div class="pneu-result-sep"></div>
     <div class="pneu-result-info">
       <div class="pneu-label">Pneu recommandé</div>
-      <div class="pneu-type" style="color:\${col.color}">\${m.pneu}</div>
-      <div class="pneu-sub">\${m.desc}</div>
+      <div class="pneu-type" style="color:${col.color}">${m.pneu}</div>
+      <div class="pneu-sub">${m.desc}</div>
     </div>
     <div class="pneu-result-logo">
-      <img src="\${m.marqueFile}" alt="\${m.marque}" />
-      <div class="logo-label">\${m.marque}</div>
+      <img src="${m.marqueFile}" alt="${m.marque}" />
+      <div class="logo-label">${m.marque}</div>
     </div>
-  \`;
+  `;
 }
 
 
