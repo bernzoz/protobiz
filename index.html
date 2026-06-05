@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RG Tools</title>
+  <title>PROTOBIZ</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -800,7 +800,7 @@
 <!-- PASSWORD -->
 <div class="page" id="page-password">
   <div class="logo-block fadein">
-    <div class="brand">RG Tools</div>
+    <div class="brand">PROTOBIZ</div>
     <div class="sub">Plateforme d'outils pour pilotes virtuels</div>
     <div class="speed-lines"><span></span><span></span><span></span><span></span><span></span></div>
   </div>
@@ -901,7 +901,8 @@ const GAMES = {
     sections: [
       { title: 'Réglages', items: [
         { id: 'gpro-setup',  icon: '🔧', label: "Calculateur d'installation" },
-        { id: 'gpro-testpts', icon: '🧪', label: "Points de test" }
+        { id: 'gpro-testpts', icon: '🧪', label: "Points de test" },
+        { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" }
       ]},
       { title: 'Bientôt disponible', items: [
         { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
@@ -993,6 +994,10 @@ function renderTool() {
     topbarTool.textContent = "Points de test";
     content.innerHTML = toolGproTestPtsHTML();
     initTestPts();
+  } else if (currentTool === 'gpro-sponsors') {
+    topbarTool.textContent = "Sponsors";
+    content.innerHTML = toolGproSponsorsHTML();
+    initSponsors();
   }
 }
 
@@ -2047,6 +2052,274 @@ function selectMeteo(id) {
   `;
 }
 
+
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : SPONSORS
+══════════════════════════════════════ */
+
+let sponsors = []; // { name, finance, attentes, patience, reputation, image, negociation }
+
+const SPONSOR_ATTRS = [
+  { key: 'finance',    label: 'Finance'     },
+  { key: 'attentes',   label: 'Attentes'    },
+  { key: 'patience',   label: 'Patience'    },
+  { key: 'reputation', label: 'Réputation'  },
+  { key: 'image',      label: 'Image'       },
+  { key: 'negociation',label: 'Négociation' }
+];
+
+const SPONSOR_QUESTIONS = [
+  { id: 'q1', label: 'Quelle zone de la voiture recevra notre publicité?' },
+  { id: 'q2', label: "Qu'espérez-vous atteindre la saison prochaine?" },
+  { id: 'q3', label: 'Comment est perçu votre pilote par les fans?' },
+  { id: 'q4', label: 'Que pensez-vous du montant par course que nous proposons?' },
+  { id: 'q5', label: 'Que pensez-vous de la durée du contrat que nous proposons?' }
+];
+
+function toolGproSponsorsHTML() {
+  return `
+  <div class="tool-panel" style="max-width:1000px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Sponsors</h2>
+      <p>Gérez vos sponsors, visualisez leurs attributs et obtenez les meilleures réponses aux questions de négociation.</p>
+    </div>
+
+    <!-- AJOUT SPONSOR -->
+    <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.25);margin-bottom:1.6rem;">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">+</span> Ajouter un sponsor</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div class="field" style="grid-column:1/-1;margin-bottom:0;">
+          <label>Nom du sponsor</label>
+          <input type="text" id="spo-name" placeholder="ex : Red Bull, Shell, DHL…"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+        ${SPONSOR_ATTRS.map(a => `
+        <div class="field" style="margin-bottom:0;">
+          <label>${a.label} <span style="color:var(--muted);font-size:.7rem;">(1–7)</span></label>
+          <input type="number" id="spo-${a.key}" placeholder="1 à 7" min="1" max="7" step="1"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;font-weight:500;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>`).join('')}
+      </div>
+      <button onclick="addSponsor()" style="padding:.8rem 2rem;border:none;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,#2980b9,#3b9ef5);color:#fff;transition:filter .2s,transform .15s;box-shadow:0 4px 20px rgba(59,158,245,.3);"
+        onmouseover="this.style.filter='brightness(1.12)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.filter='';this.style.transform=''">
+        💾 Sauvegarder le sponsor
+      </button>
+      <div id="spo-error" style="color:var(--red);font-size:.8rem;margin-top:.6rem;display:none;"></div>
+    </div>
+
+    <!-- LISTE SPONSORS -->
+    <div class="section-label fadein">Sponsors enregistrés</div>
+    <div id="sponsors-list" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:2rem;"></div>
+
+    <!-- DEMANDER AU SPONSOR -->
+    <div class="section-label fadein">Demander au sponsor</div>
+    <div class="calc-card fadein fadein-d2" id="spo-question-card" style="border-color:rgba(59,158,245,.25);margin-bottom:1.6rem;">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">💬</span> Demander au sponsor</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Sponsor</label>
+          <select id="spo-select-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.95rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+            <option value="">— Choisir un sponsor —</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Question</label>
+          <select id="spo-select-question" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.95rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+            <option value="">— Choisir une question —</option>
+            ${SPONSOR_QUESTIONS.map(q => `<option value="${q.id}">${q.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <button onclick="getSponsorAnswer()"
+        style="width:100%;padding:.95rem;border:none;border-radius:12px;font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,#2980b9,#3b9ef5);color:#fff;transition:filter .2s,transform .15s;box-shadow:0 4px 24px rgba(59,158,245,.3);"
+        onmouseover="this.style.filter='brightness(1.12)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.filter='';this.style.transform=''">
+        💬 Obtenez une réponse
+      </button>
+      <div id="spo-answer-box" style="display:none;margin-top:1.2rem;background:rgba(59,158,245,.07);border:1px solid rgba(59,158,245,.3);border-radius:12px;padding:1.2rem 1.4rem;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.6rem;">Réponse recommandée</div>
+        <div id="spo-answer-text" style="font-size:1rem;color:var(--text);line-height:1.5;"></div>
+      </div>
+    </div>
+
+    <!-- TIPS -->
+    <div class="section-label fadein">Tips & Stratégie</div>
+    <div class="calc-card fadein fadein-d3" style="border-color:rgba(241,196,15,.2);background:rgba(241,196,15,.03);">
+      <div class="card-title" style="color:#f1c40f;"><span class="tag" style="background:rgba(241,196,15,.15);color:#f1c40f;">💡</span> Conseils de négociation</div>
+      <div style="display:flex;flex-direction:column;gap:.9rem;font-size:.85rem;color:var(--muted);line-height:1.6;">
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Plus le <strong style="color:var(--text)">charisme du pilote</strong> est élevé, plus il sera efficace dans le processus de négociation.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Les <strong style="color:var(--text)">installations commerciales</strong>, tout comme les stands (pits), doivent être augmentées au maximum dès le début de la saison.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Le plus recommandé est que la <strong style="color:var(--text)">Moyenne de Négociation soit à 0% et en vert</strong>. Dans certains cas, même en vert dans la liste générale, la mention peut être jaune : "Nous pensons qu'au moins un autre manager a récemment commencé des négociations."</span></div>
+        <div style="display:flex;gap:.8rem;align-items:flex-start;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Couleurs de progression d'un sponsor : <span style="color:#2ecc71;font-weight:700;">Vert</span> = seul manager, <span style="color:#f1c40f;font-weight:700;">Jaune</span> = 1–2 autres managers, <span style="color:#e67e22;font-weight:700;">Orange</span> = 3+ autres managers. En jaune/orange, comparez votre progression à la moyenne estimée.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Les pourcentages changent après chaque course en fonction des <strong style="color:var(--text)">résultats qualifications et course</strong>, plus le % de vos installations et la priorité assignée avant la course.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Au début d'une négociation, assignez la priorité <strong style="color:var(--text)">"Très haute"</strong> pour maximiser le pourcentage et creuser l'écart face aux concurrents.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>En <strong style="color:var(--text)">Rookie</strong>, commencez la négociation avec un sponsor dès avant la 1ère course (le jeu offre 1M pour 10 courses). Quand la négociation est avancée, ajoutez d'autres sponsors progressivement.</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initSponsors() {
+  renderSponsorsList();
+  updateSponsorQuestionSelect();
+}
+
+function addSponsor() {
+  const name = document.getElementById('spo-name').value.trim();
+  const err = document.getElementById('spo-error');
+  if (!name) { showSpoError('Le nom du sponsor est obligatoire.'); return; }
+  const attrs = {};
+  for (const a of SPONSOR_ATTRS) {
+    const v = parseInt(document.getElementById('spo-' + a.key).value);
+    if (isNaN(v) || v < 1 || v > 7) { showSpoError(`"${a.label}" doit être entre 1 et 7.`); return; }
+    attrs[a.key] = v;
+  }
+  sponsors.push({ name, ...attrs });
+  err.style.display = 'none';
+  // Reset form
+  document.getElementById('spo-name').value = '';
+  SPONSOR_ATTRS.forEach(a => document.getElementById('spo-' + a.key).value = '');
+  renderSponsorsList();
+  updateSponsorQuestionSelect();
+}
+
+function showSpoError(msg) {
+  const el = document.getElementById('spo-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function deleteSponsor(idx) {
+  sponsors.splice(idx, 1);
+  renderSponsorsList();
+  updateSponsorQuestionSelect();
+  document.getElementById('spo-answer-box').style.display = 'none';
+}
+
+function renderSponsorsList() {
+  const container = document.getElementById('sponsors-list');
+  if (!container) return;
+  if (sponsors.length === 0) {
+    container.innerHTML = `<div style="color:var(--muted);font-size:.85rem;font-style:italic;text-align:center;padding:1.2rem;">Aucun sponsor enregistré. Ajoutez votre premier sponsor ci-dessus.</div>`;
+    return;
+  }
+  container.innerHTML = sponsors.map((s, i) => `
+    <div class="calc-card fadein" style="border-color:rgba(59,158,245,.2);padding:1.2rem 1.4rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#3b9ef5;">
+          💼 ${s.name}
+        </div>
+        <button onclick="deleteSponsor(${i})"
+          style="background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:8px;color:var(--red);font-size:.8rem;padding:.3rem .8rem;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;transition:background .2s;"
+          onmouseover="this.style.background='rgba(231,76,60,.2)'" onmouseout="this.style.background='rgba(231,76,60,.1)'">
+          🗑 Supprimer
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem 1.4rem;">
+        ${SPONSOR_ATTRS.map(a => `
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;">${a.label}</div>
+          <div style="display:flex;align-items:center;gap:3px;">
+            ${renderLevelBars(s[a.key])}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderLevelBars(level) {
+  // Each level bar: use gif images from logos/lvlX.gif
+  let html = '';
+  for (let i = 1; i <= level; i++) {
+    html += `<img src="logos/lvl${i}.gif" alt="lvl${i}"
+      style="height:22px;width:auto;display:block;"
+      onerror="this.replaceWith(buildFallbackBar(${i},${level}))" />`;
+  }
+  return html || '<span style="color:var(--muted);font-size:.75rem;">—</span>';
+}
+
+function buildFallbackBar(i, level) {
+  // Fallback colored bar if gif not found
+  const colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#3b9ef5','#9b59b6','#1abc9c'];
+  const span = document.createElement('span');
+  span.style.cssText = `display:inline-block;width:14px;height:20px;border-radius:3px;background:${colors[i-1]};opacity:${0.5 + (i/level)*0.5};`;
+  return span;
+}
+
+function updateSponsorQuestionSelect() {
+  const sel = document.getElementById('spo-select-name');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un sponsor —</option>' +
+    sponsors.map((s, i) => `<option value="${i}" ${cur == i ? 'selected' : ''}>${s.name}</option>`).join('');
+}
+
+function getSponsorAnswer() {
+  const spoIdx = document.getElementById('spo-select-name').value;
+  const qId    = document.getElementById('spo-select-question').value;
+  const box    = document.getElementById('spo-answer-box');
+  const txt    = document.getElementById('spo-answer-text');
+
+  if (spoIdx === '' || !qId) {
+    box.style.display = 'none';
+    alert('Veuillez sélectionner un sponsor et une question.');
+    return;
+  }
+
+  const s = sponsors[parseInt(spoIdx)];
+  let answer = '';
+
+  if (qId === 'q1') {
+    // Basé sur Image
+    const img = s.image;
+    if (img >= 6)      answer = '🏁 <strong>Capot moteur</strong> — Zone la plus valorisée pour les sponsors exigeants (Image 6–7).';
+    else if (img >= 4) answer = '🔵 <strong>Pontons</strong> — Bonne visibilité pour un sponsor d\'image intermédiaire (Image 4–5).';
+    else if (img === 3)answer = '🔴 <strong>Museau / Nez</strong> — Zone correcte pour ce niveau d\'image (Image 3).';
+    else if (img === 2)answer = '⬛ <strong>Aileron arrière</strong> — Zone adaptée pour Image 2.';
+    else               answer = '⬜ <strong>Aileron avant</strong> — Zone minimale pour Image 1.';
+  }
+  else if (qId === 'q2') {
+    // Basé sur Attentes
+    const att = s.attentes;
+    if (att === 7)      answer = '🏆 <strong>Gagner le championnat</strong> (si ligue élite) ou <strong>Promotion / Top 4</strong> — Dites-lui ce qu\'il veut entendre pour les Attentes 7.';
+    else if (att >= 5)  answer = '📈 <strong>Promotion / Top 4</strong> — Réponse attendue pour un sponsor avec des Attentes 5–6.';
+    else if (att === 4) answer = '➡️ <strong>Milieu de tableau</strong> — Objectif réaliste pour des Attentes à 4.';
+    else if (att >= 2)  answer = '📉 <strong>Fond de tableau</strong> — Réponse appropriée pour des Attentes 2–3.';
+    else                answer = '💰 <strong>Relégation avec de l\'argent frais</strong> — Sponsor à faibles attentes (Attentes 1).';
+  }
+  else if (qId === 'q3') {
+    answer = '⭐ <strong>Il est le favori des fans</strong> — Répondez toujours cela, quel que soit le charisme réel du pilote. Cette réponse maximise le montant que le sponsor peut vous offrir et ne risque pas de faire échouer la négociation.';
+  }
+  else if (qId === 'q4') {
+    // Basé sur Patience
+    const pat = s.patience;
+    if (pat <= 2)      answer = '✅ <strong>C\'est correct</strong> — Le sponsor accepte facilement (Patience 1–2).';
+    else if (pat <= 4) answer = '⬆️ <strong>Un peu bas</strong> — ' + (pat === 3 ? '50% de chance d\'augmentation (Patience 3).' : '100% de chance d\'augmentation (Patience 4).');
+    else if (pat <= 6) {
+      if (pat === 5 || pat === 6)
+        answer = '🔺 <strong>' + (pat<=6 && pat>=6 ? 'Très basse / Inacceptable' : 'Très basse') + '</strong> — '
+          + (pat === 5 ? '50% de chance d\'augmentation (Patience 5).' : '50% (Très basse) à 100% (Inacceptable) de chance d\'augmentation (Patience 6). Peut également ignorer la demande si les exigences initiales sont trop élevées.');
+    }
+    if (pat === 7)     answer = '🚫 <strong>Inacceptable</strong> — 100% de chance d\'augmentation du montant. Attention, si l\'offre initiale est très élevée, le sponsor peut maintenir sa valeur (Patience 7).';
+  }
+  else if (qId === 'q5') {
+    // Basé sur Patience
+    const pat = s.patience;
+    if (pat <= 3)      answer = '✅ <strong>C\'est correct</strong> — La durée convient au sponsor (Patience 1–3).';
+    else if (pat <= 5) answer = '📅 <strong>Un peu long</strong> — ' + (pat === 4 ? '50% de chance de modification de la durée (Patience 4).' : '100% de chance de modification de la durée (Patience 5).');
+    else               answer = '📅 <strong>Très long</strong> — ' + (pat === 6 ? '50% de chance de modification de la durée (Patience 6).' : '100% de chance de modification de la durée (Patience 7).');
+  }
+
+  txt.innerHTML = answer;
+  box.style.display = 'block';
+}
 
 </script>
 </body>
