@@ -902,6 +902,7 @@ const GAMES = {
       { title: 'Réglages', items: [
         { id: 'gpro-setup',  icon: '🔧', label: "Calculateur d'installation" },
         { id: 'gpro-testpts', icon: '🧪', label: "Points de test" },
+        { id: 'gpro-fuel',   icon: '⛽', label: "Carburant"               },
         { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" }
       ]},
       { title: 'Bientôt disponible', items: [
@@ -994,6 +995,10 @@ function renderTool() {
     topbarTool.textContent = "Points de test";
     content.innerHTML = toolGproTestPtsHTML();
     initTestPts();
+  } else if (currentTool === 'gpro-fuel') {
+    topbarTool.textContent = "Calculateur de carburant";
+    content.innerHTML = toolGproFuelHTML();
+    initGproFuel();
   } else if (currentTool === 'gpro-sponsors') {
     topbarTool.textContent = "Sponsors";
     content.innerHTML = toolGproSponsorsHTML();
@@ -2052,6 +2057,305 @@ function selectMeteo(id) {
   `;
 }
 
+
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : CALCULATEUR DE CARBURANT
+══════════════════════════════════════ */
+
+const FUEL_TRACKS = [
+  { flag:"🇦🇹", name:"A1-Ring",            laps:71,  dist:307.1, fuel:"Haute"      },
+  { flag:"🇦🇺", name:"ADELAIDE",            laps:79,  dist:298.6, fuel:"Basse"      },
+  { flag:"🇫🇮", name:"Ahvenisto",           laps:80,  dist:243.2, fuel:"Moyenne"    },
+  { flag:"🇸🇪", name:"Anderstorp",          laps:70,  dist:281.8, fuel:"Haute"      },
+  { flag:"🇺🇸", name:"Austin",              laps:56,  dist:308.9, fuel:"Moyenne"    },
+  { flag:"🇩🇪", name:"Avus",               laps:64,  dist:312.3, fuel:"Très haute" },
+  { flag:"🇦🇿", name:"Baku City",           laps:51,  dist:306.3, fuel:"Haute"      },
+  { flag:"🇪🇸", name:"Barcelona",           laps:65,  dist:307.3, fuel:"Haute"      },
+  { flag:"🇬🇧", name:"Brands Hatch",        laps:75,  dist:315.5, fuel:"Basse"      },
+  { flag:"🇧🇷", name:"Brasilia",            laps:55,  dist:301.1, fuel:"Haute"      },
+  { flag:"🇨🇭", name:"Bremgarten",          laps:42,  dist:305.8, fuel:"Moyenne"    },
+  { flag:"🇨🇿", name:"Brno",               laps:57,  dist:308.0, fuel:"Moyenne"    },
+  { flag:"🇷🇴", name:"Bucharest Ring",      laps:80,  dist:245.7, fuel:"Très haute" },
+  { flag:"🇦🇷", name:"Buenos Aires",        laps:72,  dist:306.6, fuel:"Très basse" },
+  { flag:"🇵🇹", name:"Estoril",             laps:70,  dist:305.2, fuel:"Moyenne"    },
+  { flag:"🇮🇹", name:"Fiorano",             laps:79,  dist:238.6, fuel:"Très haute" },
+  { flag:"🇯🇵", name:"Fuji",               laps:67,  dist:305.4, fuel:"Moyenne"    },
+  { flag:"🇭🇷", name:"Grobnik",             laps:74,  dist:308.4, fuel:"Basse"      },
+  { flag:"🇩🇪", name:"Hockenheim",          laps:67,  dist:306.4, fuel:"Haute"      },
+  { flag:"🇭🇺", name:"Hungaroring",         laps:77,  dist:305.5, fuel:"Très basse" },
+  { flag:"🇸🇲", name:"Imola (Saint-Marin)", laps:62,  dist:305.6, fuel:"Moyenne"    },
+  { flag:"🇺🇸", name:"Indianapolis",        laps:73,  dist:306.6, fuel:"Haute"      },
+  { flag:"🇺🇸", name:"Indianapolis Oval",   laps:200, dist:804.4, fuel:"Très haute" },
+  { flag:"🇧🇷", name:"Interlagos",          laps:71,  dist:305.9, fuel:"Moyenne"    },
+  { flag:"🇮🇳", name:"Irungattukottai",     laps:79,  dist:293.6, fuel:"Moyenne"    },
+  { flag:"🇹🇷", name:"Istanbul",            laps:58,  dist:309.4, fuel:"Moyenne"    },
+  { flag:"🇸🇦", name:"Jeddah",             laps:50,  dist:308.7, fuel:"Très haute" },
+  { flag:"🇪🇸", name:"Jerez",              laps:69,  dist:306.4, fuel:"Haute"      },
+  { flag:"🇩🇰", name:"Jyllands-Ringen",    laps:136, dist:312.8, fuel:"Basse"      },
+  { flag:"🇱🇹", name:"Kaunas",             laps:80,  dist:264.1, fuel:"Moyenne"    },
+  { flag:"🇿🇦", name:"Kyalami",            laps:72,  dist:306.8, fuel:"Très basse" },
+  { flag:"🇺🇸", name:"Laguna Seca",        laps:79,  dist:284.5, fuel:"Très haute" },
+  { flag:"🇫🇷", name:"Magny Cours",        laps:72,  dist:305.8, fuel:"Moyenne"    },
+  { flag:"🇦🇺", name:"Melbourne",           laps:58,  dist:307.6, fuel:"Moyenne"    },
+  { flag:"🇲🇽", name:"Mexico City",         laps:69,  dist:305.0, fuel:"Basse"      },
+  { flag:"🇲🇨", name:"Monte Carlo",         laps:78,  dist:262.8, fuel:"Basse"      },
+  { flag:"🇨🇦", name:"Montreal",            laps:69,  dist:305.0, fuel:"Moyenne"    },
+  { flag:"🇮🇹", name:"Monza",              laps:53,  dist:306.7, fuel:"Très haute" },
+  { flag:"🇮🇹", name:"Mugello",            laps:58,  dist:304.3, fuel:"Moyenne"    },
+  { flag:"🇮🇳", name:"New Delhi",           laps:60,  dist:308.2, fuel:"Moyenne"    },
+  { flag:"🇩🇪", name:"Nurburgring",         laps:60,  dist:308.7, fuel:"Très basse" },
+  { flag:"🇦🇹", name:"Oesterreichring",     laps:52,  dist:308.9, fuel:"Haute"      },
+  { flag:"🇫🇷", name:"Paul Ricard",         laps:79,  dist:305.0, fuel:"Haute"      },
+  { flag:"🇵🇹", name:"Portimao",            laps:66,  dist:309.7, fuel:"Moyenne"    },
+  { flag:"🇵🇱", name:"Poznan",             laps:75,  dist:306.2, fuel:"Basse"      },
+  { flag:"🇦🇷", name:"Rafaela Oval",        laps:67,  dist:317.3, fuel:"Très haute" },
+  { flag:"🇧🇭", name:"Sakhir",             laps:57,  dist:308.5, fuel:"Très haute" },
+  { flag:"🇲🇾", name:"Sepang",             laps:55,  dist:310.4, fuel:"Moyenne"    },
+  { flag:"🇬🇷", name:"Serres",             laps:80,  dist:254.9, fuel:"Moyenne"    },
+  { flag:"🇨🇳", name:"Shanghai",            laps:56,  dist:305.2, fuel:"Très haute" },
+  { flag:"🇬🇧", name:"Silverstone",         laps:60,  dist:308.3, fuel:"Haute"      },
+  { flag:"🇸🇬", name:"Singapore",           laps:61,  dist:309.1, fuel:"Moyenne"    },
+  { flag:"🇸🇰", name:"Slovakiaring",        laps:53,  dist:313.9, fuel:"Haute"      },
+  { flag:"🇷🇺", name:"Sochi",              laps:53,  dist:310.1, fuel:"Basse"      },
+  { flag:"🇧🇪", name:"Spa",               laps:44,  dist:306.6, fuel:"Haute"      },
+  { flag:"🇯🇵", name:"Suzuka",             laps:53,  dist:310.6, fuel:"Moyenne"    },
+  { flag:"🇪🇸", name:"Valencia",            laps:57,  dist:310.1, fuel:"Moyenne"    },
+  { flag:"🇦🇪", name:"Yas Marina",          laps:55,  dist:305.5, fuel:"Basse"      },
+  { flag:"🇰🇷", name:"Yeongam",            laps:55,  dist:309.2, fuel:"Moyenne"    },
+  { flag:"🇳🇱", name:"Zandvoort",           laps:71,  dist:301.8, fuel:"Basse"      },
+  { flag:"🇧🇪", name:"Zolder",             laps:70,  dist:298.3, fuel:"Basse"      },
+  { flag:"🇺🇸", name:"Las Vegas",           laps:50,  dist:305.9, fuel:"Haute"      },
+  { flag:"🇶🇦", name:"Losail",             laps:57,  dist:306.7, fuel:"Basse"      },
+  { flag:"🇺🇸", name:"Miami",              laps:57,  dist:308.4, fuel:"Basse"      },
+];
+
+// fuel_consumption.csv data embedded as JS object
+// Keys: [consumptionLevel][weather] → array of 8 coefficients (niveau 1..8)
+const FUEL_COEFFS = {
+  "Très basse": {
+    "Sec":   [0.75,  0.75,  0.75,  0.72,  0.69,  0.67,  0.63,  0.62],
+    "Pluie": [0.5625,0.5625,0.5625,0.54,  0.5175,0.5025,0.4725,0.465]
+  },
+  "Basse": {
+    "Sec":   [0.775, 0.775, 0.775, 0.745, 0.715, 0.695, 0.655, 0.645],
+    "Pluie": [0.581, 0.581, 0.581, 0.559, 0.54,  0.521, 0.491, 0.484]
+  },
+  "Moyenne": {
+    "Sec":   [0.8,   0.8,   0.8,   0.77,  0.74,  0.72,  0.68,  0.67],
+    "Pluie": [0.6,   0.6,   0.6,   0.578, 0.555, 0.54,  0.51,  0.503]
+  },
+  "Haute": {
+    "Sec":   [0.825, 0.825, 0.825, 0.795, 0.765, 0.745, 0.705, 0.695],
+    "Pluie": [0.619, 0.619, 0.619, 0.596, 0.574, 0.559, 0.529, 0.521]
+  },
+  "Très haute": {
+    "Sec":   [0.854, 0.854, 0.854, 0.823, 0.792, 0.771, 0.73,  0.719],
+    "Pluie": [0.641, 0.641, 0.641, 0.617, 0.594, 0.579, 0.548, 0.539]
+  }
+};
+
+const FUEL_LEVEL_COLORS = {
+  "Très basse": { color: "#2ecc71", badge: "rgba(46,204,113,.15)",  border: "rgba(46,204,113,.4)"  },
+  "Basse":      { color: "#3b9ef5", badge: "rgba(59,158,245,.15)",  border: "rgba(59,158,245,.4)"  },
+  "Moyenne":    { color: "#f1c40f", badge: "rgba(241,196,15,.15)",  border: "rgba(241,196,15,.4)"  },
+  "Haute":      { color: "#e67e22", badge: "rgba(230,126,34,.15)",  border: "rgba(230,126,34,.4)"  },
+  "Très haute": { color: "#e74c3c", badge: "rgba(231,76,60,.15)",   border: "rgba(231,76,60,.4)"   },
+};
+
+function toolGproFuelHTML() {
+  const trackOpts = FUEL_TRACKS.map((t, i) =>
+    `<option value="${i}">${t.flag} ${t.name}</option>`
+  ).join('');
+
+  return `
+  <div class="tool-panel" style="max-width:860px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Calculateur de carburant</h2>
+      <p>Calculez la consommation totale de carburant et la consommation par tour selon le circuit, le niveau moteur et la météo.</p>
+    </div>
+
+    <!-- INPUTS -->
+    <div class="calc-grid fadein fadein-d1" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:1.4rem;">
+      <div class="calc-card" style="grid-column:1/-1;">
+        <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🏁</span> Circuit</div>
+        <div class="field" style="margin:0;">
+          <select id="fuel-track" onchange="calcFuel()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+            <option value="">— Sélectionnez un circuit —</option>
+            ${trackOpts}
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">Niv.</span> Niveau moteur</div>
+        <div class="field" style="margin:0;">
+          <select id="fuel-level" onchange="calcFuel()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+            <option value="">— Niveau —</option>
+            <option value="0">Niveau 1</option>
+            <option value="1">Niveau 2</option>
+            <option value="2">Niveau 3</option>
+            <option value="3">Niveau 4</option>
+            <option value="4">Niveau 5</option>
+            <option value="5">Niveau 6</option>
+            <option value="6">Niveau 7</option>
+            <option value="7">Niveau 8</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">🌤️</span> Météo</div>
+        <div class="field" style="margin:0;">
+          <select id="fuel-weather" onchange="calcFuel()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
+            <option value="">— Météo —</option>
+            <option value="Sec">☀️ Sec</option>
+            <option value="Pluie">🌧️ Pluie</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">Nbre</span> Relais planifiés</div>
+        <div class="field" style="margin:0;">
+          <input type="number" id="fuel-stops" placeholder="ex : 2" min="1" max="10" step="1"
+            value="2" oninput="calcFuel()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:500;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- CIRCUIT INFO BADGE -->
+    <div id="fuel-circuit-info" style="display:none;margin-bottom:1.4rem;"></div>
+
+    <!-- RÉSULTATS -->
+    <div class="section-label fadein fadein-d2">Résultats</div>
+    <div class="calc-grid fadein fadein-d2" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:1.4rem;" id="fuel-results-grid">
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">Conso. totale</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.6rem;font-weight:700;color:var(--accent2);line-height:1;" id="fuel-total">—</div>
+        <div style="color:var(--muted);font-size:.78rem;margin-top:.3rem;">Litres</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">Conso. / tour</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.6rem;font-weight:700;color:#3b9ef5;line-height:1;" id="fuel-per-lap">—</div>
+        <div style="color:var(--muted);font-size:.78rem;margin-top:.3rem;">Litres / tour</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">Coefficient</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.6rem;font-weight:700;color:#9b59b6;line-height:1;" id="fuel-coeff">—</div>
+        <div style="color:var(--muted);font-size:.78rem;margin-top:.3rem;">L / km</div>
+      </div>
+    </div>
+
+    <!-- RELAIS TABLE -->
+    <div id="fuel-stops-section" style="display:none;">
+      <div class="section-label fadein fadein-d3">Répartition des relais</div>
+      <div class="calc-card fadein fadein-d3" style="border-color:rgba(59,158,245,.25);padding:0;overflow:hidden;">
+        <!-- header -->
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr;border-bottom:2px solid rgba(59,158,245,.3);background:rgba(59,158,245,.07);">
+          <div style="padding:.65rem .8rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;">Relais</div>
+          <div style="padding:.65rem .8rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;text-align:center;">Tours</div>
+          <div style="padding:.65rem .8rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;text-align:center;">Carburant (calculé)</div>
+          <div style="padding:.65rem .8rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#e74c3c;text-align:center;">+6→10 L (dernier relais)</div>
+        </div>
+        <div id="fuel-stops-rows"></div>
+      </div>
+    </div>
+
+    <!-- TIPS -->
+    <div class="section-label fadein fadein-d3" style="margin-top:2rem;">Tips & Stratégie</div>
+    <div class="calc-card fadein fadein-d3" style="border-color:rgba(241,196,15,.2);background:rgba(241,196,15,.03);">
+      <div class="card-title" style="color:#f1c40f;"><span class="tag" style="background:rgba(241,196,15,.15);color:#f1c40f;">💡</span> Conseils carburant</div>
+      <div style="display:flex;flex-direction:column;gap:.9rem;font-size:.85rem;color:var(--muted);line-height:1.6;">
+        <div style="display:flex;gap:.8rem;"><span style="color:#f1c40f;flex-shrink:0;">▸</span><span>Multipliez la <strong style="color:var(--text)">consommation par tour</strong> par le nombre de tours de chaque relais pour déterminer la charge exacte de carburant à chaque arrêt programmé.</span></div>
+        <div style="display:flex;gap:.8rem;"><span style="color:#e74c3c;flex-shrink:0;">▸</span><span>Ajoutez toujours <strong style="color:#e74c3c;">6 à 10 litres supplémentaires au dernier arrêt</strong> pour prévenir les erreurs de calcul ou l'influence d'autres facteurs (agressivité, humidité, risques, etc…)</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initGproFuel() {
+  // nothing to init — reactive via calcFuel()
+}
+
+function calcFuel() {
+  const trackIdx  = document.getElementById('fuel-track').value;
+  const levelIdx  = document.getElementById('fuel-level').value;
+  const weather   = document.getElementById('fuel-weather').value;
+  const stopsVal  = parseInt(document.getElementById('fuel-stops').value) || 2;
+
+  const infoEl    = document.getElementById('fuel-circuit-info');
+  const totalEl   = document.getElementById('fuel-total');
+  const perLapEl  = document.getElementById('fuel-per-lap');
+  const coeffEl   = document.getElementById('fuel-coeff');
+  const stopsSection = document.getElementById('fuel-stops-section');
+
+  if (trackIdx === '' || levelIdx === '' || !weather) {
+    infoEl.style.display = 'none';
+    totalEl.textContent = '—';
+    perLapEl.textContent = '—';
+    coeffEl.textContent = '—';
+    stopsSection.style.display = 'none';
+    return;
+  }
+
+  const track  = FUEL_TRACKS[parseInt(trackIdx)];
+  const coeffs = FUEL_COEFFS[track.fuel][weather];
+  const coeff  = coeffs[parseInt(levelIdx)];
+  const total  = parseFloat((track.dist * coeff).toFixed(2));
+  const perLap = parseFloat((total / track.laps).toFixed(3));
+
+  // Circuit info badge
+  const fc = FUEL_LEVEL_COLORS[track.fuel];
+  infoEl.style.display = 'block';
+  infoEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem 1.4rem;">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;letter-spacing:.1em;">${track.flag} ${track.name}</div>
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:.72rem;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.25rem .75rem;border-radius:20px;background:${fc.badge};color:${fc.color};border:1px solid ${fc.border};">
+          ⛽ ${track.fuel}
+        </span>
+        <span style="font-size:.78rem;color:var(--muted);">📏 ${track.dist} km</span>
+        <span style="font-size:.78rem;color:var(--muted);">🔄 ${track.laps} tours</span>
+        <span style="font-size:.78rem;color:var(--muted);">📐 ${(track.dist/track.laps).toFixed(3)} km/tour</span>
+      </div>
+    </div>`;
+
+  // Results
+  totalEl.textContent  = total.toFixed(2);
+  perLapEl.textContent = perLap.toFixed(3);
+  coeffEl.textContent  = coeff.toFixed(4);
+
+  // Stops table
+  const stops = Math.max(1, Math.min(stopsVal, 20));
+  const baseLaps = Math.floor(track.laps / stops);
+  const remainder = track.laps - baseLaps * stops;
+
+  let rowsHTML = '';
+  for (let i = 0; i < stops; i++) {
+    const lapsThisStop = baseLaps + (i < remainder ? 1 : 0);
+    const fuelThisStop = parseFloat((lapsThisStop * perLap).toFixed(2));
+    const isLast = i === stops - 1;
+    const minExtra = parseFloat((fuelThisStop + 6).toFixed(2));
+    const maxExtra = parseFloat((fuelThisStop + 10).toFixed(2));
+
+    rowsHTML += `
+    <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr;align-items:center;border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};">
+      <div style="padding:.7rem .8rem;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;color:#3b9ef5;">R${i+1}</div>
+      <div style="padding:.7rem .8rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);">${lapsThisStop} tours</div>
+      <div style="padding:.7rem .8rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;color:var(--accent2);">${fuelThisStop} L</div>
+      <div style="padding:.7rem .8rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:${isLast?'1.1rem':'.82rem'};font-weight:${isLast?'700':'400'};color:${isLast?'#e74c3c':'var(--muted)'};">
+        ${isLast ? `⚠️ ${minExtra} – ${maxExtra} L` : '—'}
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('fuel-stops-rows').innerHTML = rowsHTML;
+  stopsSection.style.display = 'block';
+}
 
 
 /* ══════════════════════════════════════
