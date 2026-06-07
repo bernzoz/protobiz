@@ -903,7 +903,8 @@ const GAMES = {
         { id: 'gpro-setup',  icon: '🔧', label: "Calculateur d'installation" },
         { id: 'gpro-testpts', icon: '🧪', label: "Points de test" },
         { id: 'gpro-fuel',   icon: '⛽', label: "Carburant"               },
-        { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" }
+        { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" },
+        { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" }
       ]},
       { title: 'Bientôt disponible', items: [
         { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
@@ -1003,6 +1004,9 @@ function renderTool() {
     topbarTool.textContent = "Sponsors";
     content.innerHTML = toolGproSponsorsHTML();
     initSponsors();
+  } else if (currentTool === 'gpro-meteo-setup') {
+    topbarTool.textContent = "Modificateur Météo Setup";
+    content.innerHTML = toolGproMeteoSetupHTML();
   }
 }
 
@@ -2624,6 +2628,204 @@ function getSponsorAnswer() {
   txt.innerHTML = answer;
   box.style.display = 'block';
 }
+
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : MODIFICATEUR MÉTÉO SETUP
+══════════════════════════════════════ */
+
+const METEO_SETUP_PARTS = [
+  { key: 'ailAv', label: 'Aileron Avant',    coeffPlus: 4,    coeffMinus: -4    },
+  { key: 'ailAr', label: 'Aileron Arrière',   coeffPlus: 4,    coeffMinus: -4    },
+  { key: 'mot',   label: 'Moteur',            coeffPlus: -3.3, coeffMinus: 3.3   },
+  { key: 'fre',   label: 'Freins',            coeffPlus: 5.5,  coeffMinus: -5.5  },
+  { key: 'bav',   label: 'Boîte de vitesses', coeffPlus: -3.5, coeffMinus: 3.5   },
+  { key: 'sus',   label: 'Suspension',        coeffPlus: -6,   coeffMinus: 6     },
+];
+
+function toolGproMeteoSetupHTML() {
+  return `
+  <div class="tool-panel" style="max-width:860px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Modificateur Météo Setup</h2>
+      <p>Entrez votre setup actuel et les températures pour calculer automatiquement les nouveaux réglages adaptés.</p>
+    </div>
+
+    <!-- SETUP ACTUEL + TEMPÉRATURES -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;margin-bottom:1.4rem;">
+
+      <!-- Setup actuel -->
+      <div class="calc-card fadein fadein-d1" style="grid-column:1/-1;border-color:rgba(59,158,245,.25);">
+        <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🔧</span> Setup actuel</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+          ${METEO_SETUP_PARTS.map(p => `
+          <div class="field" style="margin:0;">
+            <label>${p.label}</label>
+            <input type="number" id="ms-${p.key}" placeholder="ex : 500"
+              min="0" max="999" step="1" oninput="calcMeteoSetup()"
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:500;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+              onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+              onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Température actuelle -->
+      <div class="calc-card fadein fadein-d1" style="border-color:rgba(230,126,34,.25);">
+        <div class="card-title" style="color:#e67e22;"><span class="tag" style="background:rgba(230,126,34,.15);color:#e67e22;">🌡️</span> Température actuelle</div>
+        <div class="field" style="margin:0;">
+          <label>Température de référence (°C)</label>
+          <input type="number" id="ms-temp-from" placeholder="ex : 20"
+            step="1" oninput="calcMeteoSetup()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.3rem;font-weight:700;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#e67e22';this.style.boxShadow='0 0 0 3px rgba(230,126,34,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+      </div>
+
+      <!-- Température cible -->
+      <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.25);">
+        <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🎯</span> Température cible</div>
+        <div class="field" style="margin:0;">
+          <label>Température souhaitée (°C)</label>
+          <input type="number" id="ms-temp-to" placeholder="ex : 24"
+            step="1" oninput="calcMeteoSetup()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.3rem;font-weight:700;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+      </div>
+    </div>
+
+    <!-- RÉSULTATS -->
+    <div class="section-label fadein fadein-d2">Nouveau setup calculé</div>
+    <div id="ms-results" class="fadein fadein-d2">
+      <div class="calc-card" style="border-color:rgba(59,158,245,.15);padding:1.8rem;display:flex;align-items:center;justify-content:center;min-height:120px;">
+        <div style="color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:.8rem;">
+          <span style="font-size:1.8rem;opacity:.4;">🌡️</span>
+          Renseignez le setup actuel et les deux températures pour voir les nouveaux réglages
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLEAU DES COEFFICIENTS -->
+    <div class="section-label fadein fadein-d3" style="margin-top:2rem;">Coefficients de modification</div>
+    <div class="calc-card fadein fadein-d3" style="border-color:rgba(59,158,245,.2);padding:0;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid rgba(59,158,245,.3);background:rgba(59,158,245,.07);">
+        <div style="padding:.65rem 1.2rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;">Composant</div>
+        <div style="padding:.65rem 1.2rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#e74c3c;text-align:center;">Par +1°C</div>
+        <div style="padding:.65rem 1.2rem;font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;text-align:center;">Par −1°C</div>
+      </div>
+      ${METEO_SETUP_PARTS.map((p, i) => `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};">
+        <div style="padding:.7rem 1.2rem;font-family:'Rajdhani',sans-serif;font-size:.9rem;font-weight:600;letter-spacing:.06em;color:var(--text);">${p.label}</div>
+        <div style="padding:.7rem 1.2rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;color:${p.coeffPlus >= 0 ? '#e74c3c' : '#3b9ef5'};">
+          ${p.coeffPlus > 0 ? '+' : ''}${p.coeffPlus}
+        </div>
+        <div style="padding:.7rem 1.2rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;color:${-p.coeffPlus >= 0 ? '#e74c3c' : '#3b9ef5'};">
+          ${-p.coeffPlus > 0 ? '+' : ''}${-p.coeffPlus}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function calcMeteoSetup() {
+  const tempFrom = parseFloat(document.getElementById('ms-temp-from').value);
+  const tempTo   = parseFloat(document.getElementById('ms-temp-to').value);
+  const resultsEl = document.getElementById('ms-results');
+  if (!resultsEl) return;
+
+  // Check all inputs filled
+  const currentVals = {};
+  let allFilled = true;
+  for (const p of METEO_SETUP_PARTS) {
+    const v = parseFloat(document.getElementById('ms-' + p.key).value);
+    if (isNaN(v)) { allFilled = false; break; }
+    currentVals[p.key] = v;
+  }
+
+  if (!allFilled || isNaN(tempFrom) || isNaN(tempTo)) {
+    resultsEl.innerHTML = `
+      <div class="calc-card" style="border-color:rgba(59,158,245,.15);padding:1.8rem;display:flex;align-items:center;justify-content:center;min-height:120px;">
+        <div style="color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:.8rem;">
+          <span style="font-size:1.8rem;opacity:.4;">🌡️</span>
+          Renseignez le setup actuel et les deux températures pour voir les nouveaux réglages
+        </div>
+      </div>`;
+    return;
+  }
+
+  const delta = tempTo - tempFrom;
+
+  if (delta === 0) {
+    resultsEl.innerHTML = `
+      <div class="calc-card" style="border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.05);padding:1.4rem 1.6rem;">
+        <div style="display:flex;align-items:center;gap:.8rem;color:#2ecc71;font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.1em;">
+          <span style="font-size:1.5rem;">✓</span> Températures identiques — aucune modification nécessaire
+        </div>
+      </div>`;
+    return;
+  }
+
+  const sign = delta > 0 ? '+' : '';
+  const newVals = {};
+  for (const p of METEO_SETUP_PARTS) {
+    const coeff = delta > 0 ? p.coeffPlus : p.coeffMinus;
+    const raw = currentVals[p.key] + (Math.abs(delta) * coeff);
+    newVals[p.key] = Math.round(Math.max(0, Math.min(999, raw)));
+  }
+
+  // Delta color: rouge si hausse, bleu si baisse, gris si inchangé
+  function diffHTML(oldVal, newVal) {
+    const diff = newVal - oldVal;
+    if (diff === 0) return `<span style="color:var(--muted);font-size:.8rem;font-family:'Rajdhani',sans-serif;">±0</span>`;
+    const color = diff > 0 ? '#e74c3c' : '#3b9ef5';
+    const arrow = diff > 0 ? '▲' : '▼';
+    return `<span style="color:${color};font-family:'Rajdhani',sans-serif;font-size:.85rem;font-weight:700;">${arrow} ${diff > 0 ? '+' : ''}${diff}</span>`;
+  }
+
+  resultsEl.innerHTML = `
+    <!-- Delta badge -->
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+      <div style="background:rgba(59,158,245,.1);border:1px solid rgba(59,158,245,.3);border-radius:12px;padding:.6rem 1.2rem;display:flex;align-items:center;gap:.8rem;">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#3b9ef5;">Variation</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:1.4rem;font-weight:700;color:${delta > 0 ? '#e74c3c' : '#3b9ef5'};">
+          ${sign}${delta}°C
+        </span>
+        <span style="font-size:.78rem;color:var(--muted);">(${tempFrom}°C → ${tempTo}°C)</span>
+      </div>
+    </div>
+
+    <!-- Results grid -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+      ${METEO_SETUP_PARTS.map(p => {
+        const oldV = currentVals[p.key];
+        const newV = newVals[p.key];
+        const changed = newV !== Math.round(oldV);
+        return `
+        <div class="calc-card" style="border-color:${changed ? 'rgba(59,158,245,.35)' : 'var(--border)'};background:${changed ? 'rgba(59,158,245,.04)' : 'var(--surface)'};padding:1.2rem 1.4rem;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.8rem;">${p.label}</div>
+          <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.4rem;">
+            <span style="font-family:'Rajdhani',sans-serif;font-size:.95rem;color:var(--muted);font-weight:600;">${Math.round(oldV)}</span>
+            <span style="color:var(--muted);font-size:.8rem;">→</span>
+            <span style="font-family:'Rajdhani',sans-serif;font-size:2rem;font-weight:700;color:${changed ? 'var(--text)' : 'var(--muted)'};line-height:1;">${newV}</span>
+          </div>
+          <div>${diffHTML(Math.round(oldV), newV)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Tip clamp -->
+    ${METEO_SETUP_PARTS.some(p => newVals[p.key] === 0 || newVals[p.key] === 999) ? `
+    <div style="margin-top:1rem;background:rgba(241,196,15,.07);border:1px solid rgba(241,196,15,.3);border-radius:12px;padding:.9rem 1.2rem;font-size:.8rem;color:#f1c40f;display:flex;gap:.7rem;align-items:flex-start;">
+      <span style="flex-shrink:0;">⚠️</span>
+      <span>Un ou plusieurs réglages ont atteint la limite (0 ou 999) et ont été tronqués.</span>
+    </div>` : ''}
+  `;
+}
+
+
 
 </script>
 </body>
