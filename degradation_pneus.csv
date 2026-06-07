@@ -47,7 +47,7 @@ Toyo SF;Dur;Asphalte;Sec;Froid;;;;;;
 Kumho TI;Dur;Terre;Intermediaire;Chaud/Froid;;;;;;
 Kumho NE;Neige;Neige;Toutes;Froid;;;;;;
 Kumho PC;Dur;Asphalte;Pluie;Chaud;;;;;;
-Kumho TP;Medium/dur;Terre;Pluie;Chaud/Froid;0.28;0.25;;;;
+Kumho TP;Medium/dur;Terre;Pluie;Chaud/Froid;0.28;0.25;;0.22;;
 Kumho PF;Medium;Asphalte;Pluie;Froid;;;;;;
 Kumho TS;Tres dur;Terre;Sec;Chaud/Froid;0.23;0.20;0.25;;;
 Dmack IC;Dur;Asphalte;Intermediaire;Chaud;;;;;;
