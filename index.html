@@ -903,6 +903,7 @@ const GAMES = {
         { id: 'gpro-setup',  icon: '🔧', label: "Calculateur d'installation" },
         { id: 'gpro-testpts', icon: '🧪', label: "Points de test" },
         { id: 'gpro-fuel',   icon: '⛽', label: "Carburant"               },
+        { id: 'gpro-tyre-deg', icon: '🔴', label: "Dégradation pneus"     },
         { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" },
         { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" }
       ]},
@@ -1004,6 +1005,10 @@ function renderTool() {
     topbarTool.textContent = "Sponsors";
     content.innerHTML = toolGproSponsorsHTML();
     initSponsors();
+  } else if (currentTool === 'gpro-tyre-deg') {
+    topbarTool.textContent = "Dégradation pneus (Post-Race)";
+    content.innerHTML = toolGproTyreDegHTML();
+    initGproTyreDeg();
   } else if (currentTool === 'gpro-meteo-setup') {
     topbarTool.textContent = "Modificateur Météo Setup";
     content.innerHTML = toolGproMeteoSetupHTML();
@@ -2827,6 +2832,327 @@ function calcMeteoSetup() {
 
 
 
-</script>
+/* ══════════════════════════════════════
+   OUTIL GPRO : DÉGRADATION PNEUS (POST-RACE)
+══════════════════════════════════════ */
+
+const GPRO_TRACKS_DEG = [
+  { flag:"🇦🇹", pays:"AUTRICHE", name:"A1-Ring", dist:307.1, laps:71, lapLen:4.325, vitesse:"234.83 km/h", pit:"21s", puissance:13, maniab:8, accel:9, appui:"Bas", depasse:"Facile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇦🇺", pays:"AUSTRALIE", name:"ADELAIDE", dist:298.6, laps:79, lapLen:3.78, vitesse:"197.48 km/h", pit:"19.5s", puissance:8, maniab:9, accel:10, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇫🇮", pays:"Finlande", name:"Ahvenisto", dist:243.2, laps:80, lapLen:3.04, vitesse:"152.75 km/h", pit:"11.5s", puissance:5, maniab:10, accel:7, appui:"Haut", depasse:"Normal", suspension:"Souple", carburant:"Moyenne", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇸🇪", pays:"Suède", name:"Anderstorp", dist:281.8, laps:70, lapLen:4.026, vitesse:"210.42 km/h", pit:"13.5s", puissance:9, maniab:11, accel:9, appui:"Bas", depasse:"Très difficile", suspension:"Souple", carburant:"Haute", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Austin", dist:308.9, laps:56, lapLen:5.516, vitesse:"197.46 km/h", pit:"17.5s", puissance:11, maniab:18, accel:10, appui:"Moyenne", depasse:"Facile", suspension:"Dur", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇩🇪", pays:"Allemagne", name:"Avus", dist:312.3, laps:64, lapLen:4.88, vitesse:"321.47 km/h", pit:"13s", puissance:22, maniab:3, accel:9, appui:"Bas", depasse:"Facile", suspension:"Dur", carburant:"Très haute", usurePneus:"Basse", grip:"Normal" },
+  { flag:"🇦🇿", pays:"Azerbaïdjan", name:"Baku City", dist:306.3, laps:51, lapLen:6.006, vitesse:"216.67 km/h", pit:"17s", puissance:18, maniab:8, accel:16, appui:"Moyenne", depasse:"Facile", suspension:"Dur", carburant:"Haute", usurePneus:"Très haute", grip:"Elevé" },
+  { flag:"🇪🇸", pays:"Espagne", name:"Barcelona", dist:307.3, laps:65, lapLen:4.728, vitesse:"224.1 km/h", pit:"21s", puissance:11, maniab:13, accel:8, appui:"Moyenne", depasse:"Difficile", suspension:"Souple", carburant:"Haute", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇬🇧", pays:"Royaume-Uni", name:"Brands Hatch", dist:315.5, laps:75, lapLen:4.207, vitesse:"217.27 km/h", pit:"25.5s", puissance:10, maniab:12, accel:8, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Basse", usurePneus:"Basse", grip:"Normal" },
+  { flag:"🇧🇷", pays:"Brésil", name:"Brasilia", dist:301.1, laps:55, lapLen:5.475, vitesse:"210.98 km/h", pit:"13.5s", puissance:16, maniab:15, accel:7, appui:"Moyenne", depasse:"Difficile", suspension:"Dur", carburant:"Haute", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇨🇭", pays:"Suisse", name:"Bremgarten", dist:305.8, laps:42, lapLen:7.281, vitesse:"272.82 km/h", pit:"17s", puissance:8, maniab:26, accel:17, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇨🇿", pays:"République tchèque", name:"Brno", dist:308, laps:57, lapLen:5.404, vitesse:"211.92 km/h", pit:"14s", puissance:12, maniab:12, accel:14, appui:"Moyenne", depasse:"Facile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇷🇴", pays:"Roumanie", name:"Bucharest Ring", dist:245.7, laps:80, lapLen:3.071, vitesse:"150.5 km/h", pit:"24s", puissance:8, maniab:6, accel:8, appui:"Bas", depasse:"Facile", suspension:"Dur", carburant:"Très haute", usurePneus:"Basse", grip:"Normal" },
+  { flag:"🇦🇷", pays:"Argentine", name:"Buenos Aires", dist:306.6, laps:72, lapLen:4.258, vitesse:"189.63 km/h", pit:"19.5s", puissance:12, maniab:11, accel:9, appui:"Haut", depasse:"Très difficile", suspension:"Dur", carburant:"Très basse", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇵🇹", pays:"Portugal", name:"Estoril", dist:305.2, laps:70, lapLen:4.36, vitesse:"228.85 km/h", pit:"22.5s", puissance:11, maniab:8, accel:14, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇮🇹", pays:"Italie", name:"Fiorano", dist:238.6, laps:79, lapLen:3.02, vitesse:"188.93 km/h", pit:"16.5s", puissance:8, maniab:6, accel:7, appui:"Moyenne", depasse:"Normal", suspension:"Dur", carburant:"Très haute", usurePneus:"Haute", grip:"Bas" },
+  { flag:"🇯🇵", pays:"Japon", name:"Fuji", dist:305.4, laps:67, lapLen:4.558, vitesse:"199.75 km/h", pit:"18.5s", puissance:13, maniab:11, accel:8, appui:"Bas", depasse:"Facile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇭🇷", pays:"Croatie", name:"Grobnik", dist:308.4, laps:74, lapLen:4.168, vitesse:"224.81 km/h", pit:"13s", puissance:8, maniab:15, accel:7, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Très haute", grip:"Très élevé" },
+  { flag:"🇩🇪", pays:"Allemagne", name:"Hockenheim", dist:306.4, laps:67, lapLen:4.573, vitesse:"246.04 km/h", pit:"16.5s", puissance:12, maniab:9, accel:11, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Haute", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇭🇺", pays:"Hongrie", name:"Hungaroring", dist:305.5, laps:77, lapLen:3.968, vitesse:"194.35 km/h", pit:"16.5s", puissance:7, maniab:10, accel:13, appui:"Haut", depasse:"Très difficile", suspension:"Moyenne", carburant:"Très basse", usurePneus:"Très basse", grip:"Très élevé" },
+  { flag:"🇸🇲", pays:"Saint-Marin", name:"Imola", dist:305.6, laps:62, lapLen:4.929, vitesse:"221.81 km/h", pit:"12s", puissance:12, maniab:13, accel:9, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Indianapolis", dist:306.6, laps:73, lapLen:4.2, vitesse:"214.98 km/h", pit:"25.5s", puissance:10, maniab:9, accel:11, appui:"Bas", depasse:"Facile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Indianapolis Oval", dist:804.4, laps:200, lapLen:4.022, vitesse:"471.65 km/h", pit:"45s", puissance:17, maniab:9, accel:2, appui:"Bas", depasse:"Très facile", suspension:"Souple", carburant:"Très haute", usurePneus:"Basse", grip:"Bas" },
+  { flag:"🇧🇷", pays:"Brésil", name:"Interlagos", dist:305.9, laps:71, lapLen:4.308, vitesse:"221.51 km/h", pit:"18s", puissance:12, maniab:9, accel:10, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇮🇳", pays:"Inde", name:"Irungattukottai", dist:293.6, laps:79, lapLen:3.716, vitesse:"174.74 km/h", pit:"14s", puissance:8, maniab:12, accel:7, appui:"Moyenne", depasse:"Facile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Haute", grip:"Elevé" },
+  { flag:"🇹🇷", pays:"Turquie", name:"Istanbul", dist:309.4, laps:58, lapLen:5.334, vitesse:"233.62 km/h", pit:"16s", puissance:13, maniab:10, accel:14, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇸🇦", pays:"Arabie Saoudite", name:"Jeddah", dist:308.7, laps:50, lapLen:6.174, vitesse:"245.6 km/h", pit:"21s", puissance:20, maniab:12, accel:11, appui:"Bas", depasse:"Normal", suspension:"Moyenne", carburant:"Très haute", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇪🇸", pays:"Espagne", name:"Jerez", dist:306.4, laps:69, lapLen:4.441, vitesse:"208.79 km/h", pit:"18s", puissance:8, maniab:16, accel:8, appui:"Moyenne", depasse:"Difficile", suspension:"Souple", carburant:"Haute", usurePneus:"Très haute", grip:"Bas" },
+  { flag:"🇩🇰", pays:"Danemark", name:"Jyllands-Ringen", dist:312.8, laps:136, lapLen:2.3, vitesse:"157.76 km/h", pit:"19.5s", puissance:5, maniab:9, accel:4, appui:"Haut", depasse:"Normal", suspension:"Moyenne", carburant:"Basse", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇱🇹", pays:"Lituanie", name:"Kaunas", dist:264.1, laps:80, lapLen:3.301, vitesse:"190.52 km/h", pit:"11s", puissance:9, maniab:10, accel:5, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Haute", grip:"Bas" },
+  { flag:"🇿🇦", pays:"Afrique du Sud", name:"Kyalami", dist:306.8, laps:72, lapLen:4.261, vitesse:"240.76 km/h", pit:"15s", puissance:9, maniab:12, accel:9, appui:"Haut", depasse:"Difficile", suspension:"Dur", carburant:"Très basse", usurePneus:"Moyenne", grip:"Très bas" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Laguna Seca", dist:284.5, laps:79, lapLen:3.601, vitesse:"185.46 km/h", pit:"16.7s", puissance:11, maniab:8, accel:7, appui:"Moyenne", depasse:"Facile", suspension:"Souple", carburant:"Très haute", usurePneus:"Haute", grip:"Très bas" },
+  { flag:"🇫🇷", pays:"France", name:"Magny Cours", dist:305.8, laps:72, lapLen:4.247, vitesse:"213.14 km/h", pit:"18s", puissance:12, maniab:8, accel:11, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇦🇺", pays:"Australie", name:"Melbourne", dist:307.6, laps:58, lapLen:5.303, vitesse:"226.07 km/h", pit:"16.5s", puissance:12, maniab:15, accel:10, appui:"Moyenne", depasse:"Difficile", suspension:"Souple", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇲🇽", pays:"Mexique", name:"Mexico City", dist:305, laps:69, lapLen:4.42, vitesse:"231.36 km/h", pit:"24s", puissance:13, maniab:12, accel:7, appui:"Moyenne", depasse:"Difficile", suspension:"Souple", carburant:"Basse", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇲🇨", pays:"Monaco", name:"Monte Carlo", dist:262.8, laps:78, lapLen:3.369, vitesse:"159.31 km/h", pit:"18s", puissance:7, maniab:7, accel:12, appui:"Haut", depasse:"Très difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇨🇦", pays:"Canada", name:"Montreal", dist:305, laps:69, lapLen:4.42, vitesse:"215.72 km/h", pit:"16.5s", puissance:12, maniab:7, accel:13, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Très bas" },
+  { flag:"🇮🇹", pays:"Italie", name:"Monza", dist:306.7, laps:53, lapLen:5.787, vitesse:"267.37 km/h", pit:"25.5s", puissance:17, maniab:12, accel:9, appui:"Bas", depasse:"Facile", suspension:"Moyenne", carburant:"Très haute", usurePneus:"Moyenne", grip:"Très bas" },
+  { flag:"🇮🇹", pays:"Italie", name:"Mugello", dist:304.3, laps:58, lapLen:5.247, vitesse:"251.72 km/h", pit:"13.5s", puissance:11, maniab:13, accel:12, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇮🇳", pays:"Inde", name:"New Delhi", dist:308.2, laps:60, lapLen:5.137, vitesse:"235.46 km/h", pit:"19s", puissance:11, maniab:15, accel:10, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Moyenne", usurePneus:"Très haute", grip:"Très bas" },
+  { flag:"🇩🇪", pays:"Allemagne", name:"Nurburgring", dist:308.7, laps:60, lapLen:5.145, vitesse:"230.77 km/h", pit:"15s", puissance:12, maniab:12, accel:13, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Très basse", usurePneus:"Basse", grip:"Normal" },
+  { flag:"🇦🇹", pays:"Autriche", name:"Oesterreichring", dist:308.9, laps:52, lapLen:5.94, vitesse:"277.82 km/h", pit:"21s", puissance:19, maniab:14, accel:9, appui:"Moyenne", depasse:"Facile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇫🇷", pays:"France", name:"Paul Ricard", dist:305, laps:79, lapLen:3.861, vitesse:"234.12 km/h", pit:"19.5s", puissance:9, maniab:11, accel:8, appui:"Moyenne", depasse:"Facile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Très haute", grip:"Très élevé" },
+  { flag:"🇵🇹", pays:"Portugal", name:"Portimao", dist:309.7, laps:66, lapLen:4.692, vitesse:"207.9 km/h", pit:"15.5s", puissance:9, maniab:14, accel:11, appui:"Haut", depasse:"Facile", suspension:"Souple", carburant:"Moyenne", usurePneus:"Haute", grip:"Bas" },
+  { flag:"🇵🇱", pays:"Pologne", name:"Poznan", dist:306.2, laps:75, lapLen:4.083, vitesse:"223.72 km/h", pit:"14s", puissance:7, maniab:14, accel:8, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇦🇷", pays:"Argentine", name:"Rafaela Oval", dist:317.3, laps:67, lapLen:4.736, vitesse:"341.7 km/h", pit:"10s", puissance:18, maniab:10, accel:6, appui:"Bas", depasse:"Très facile", suspension:"Moyenne", carburant:"Très haute", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇧🇭", pays:"Bahreïn", name:"Sakhir", dist:308.5, laps:57, lapLen:5.412, vitesse:"245.34 km/h", pit:"25.5s", puissance:16, maniab:11, accel:9, appui:"Bas", depasse:"Normal", suspension:"Souple", carburant:"Très haute", usurePneus:"Moyenne", grip:"Très élevé" },
+  { flag:"🇲🇾", pays:"Malaisie", name:"Sepang", dist:310.4, laps:55, lapLen:5.644, vitesse:"221.89 km/h", pit:"24s", puissance:14, maniab:11, accel:14, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Très élevé" },
+  { flag:"🇬🇷", pays:"Grèce", name:"Serres", dist:254.9, laps:80, lapLen:3.186, vitesse:"205.56 km/h", pit:"12s", puissance:5, maniab:10, accel:9, appui:"Haut", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇨🇳", pays:"Chine", name:"Shanghai", dist:305.2, laps:56, lapLen:5.45, vitesse:"225.01 km/h", pit:"24s", puissance:9, maniab:16, accel:15, appui:"Moyenne", depasse:"Normal", suspension:"Souple", carburant:"Très haute", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇬🇧", pays:"Royaume-Uni", name:"Silverstone", dist:308.3, laps:60, lapLen:5.138, vitesse:"232.12 km/h", pit:"22.5s", puissance:11, maniab:11, accel:16, appui:"Bas", depasse:"Normal", suspension:"Moyenne", carburant:"Haute", usurePneus:"Basse", grip:"Normal" },
+  { flag:"🇸🇬", pays:"Singapour", name:"Singapore", dist:309.1, laps:61, lapLen:5.067, vitesse:"222.08 km/h", pit:"17s", puissance:7, maniab:11, accel:17, appui:"Haut", depasse:"Difficile", suspension:"Dur", carburant:"Moyenne", usurePneus:"Haute", grip:"Bas" },
+  { flag:"🇸🇰", pays:"Slovaquie", name:"Slovakiaring", dist:313.9, laps:53, lapLen:5.923, vitesse:"228.97 km/h", pit:"19.5s", puissance:17, maniab:10, accel:15, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Haute", grip:"Elevé" },
+  { flag:"🇷🇺", pays:"Russie", name:"Sochi", dist:310.1, laps:53, lapLen:5.851, vitesse:"212.26 km/h", pit:"23s", puissance:8, maniab:15, accel:18, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇧🇪", pays:"Belgique", name:"Spa", dist:306.6, laps:44, lapLen:6.968, vitesse:"242.47 km/h", pit:"13.5s", puissance:18, maniab:16, accel:13, appui:"Moyenne", depasse:"Normal", suspension:"Moyenne", carburant:"Haute", usurePneus:"Moyenne", grip:"Normal" },
+  { flag:"🇯🇵", pays:"Japon", name:"Suzuka", dist:310.6, laps:53, lapLen:5.86, vitesse:"240.64 km/h", pit:"15s", puissance:11, maniab:18, accel:13, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Très élevé" },
+  { flag:"🇪🇸", pays:"Espagne", name:"Valencia", dist:310.1, laps:57, lapLen:5.44, vitesse:"220.28 km/h", pit:"14.5s", puissance:11, maniab:12, accel:16, appui:"Haut", depasse:"Difficile", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇦🇪", pays:"Émirats arabes unis", name:"Yas Marina", dist:305.5, laps:55, lapLen:5.555, vitesse:"221.24 km/h", pit:"18.5s", puissance:12, maniab:10, accel:17, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇰🇷", pays:"Corée du Sud", name:"Yeongam", dist:309.2, laps:55, lapLen:5.622, vitesse:"220.51 km/h", pit:"23.5s", puissance:11, maniab:15, accel:13, appui:"Haut", depasse:"Normal", suspension:"Moyenne", carburant:"Moyenne", usurePneus:"Haute", grip:"Normal" },
+  { flag:"🇳🇱", pays:"Pays-Bas", name:"Zandvoort", dist:301.8, laps:71, lapLen:4.251, vitesse:"239.92 km/h", pit:"22.5s", puissance:9, maniab:13, accel:9, appui:"Moyenne", depasse:"Normal", suspension:"Dur", carburant:"Basse", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇧🇪", pays:"Belgique", name:"Zolder", dist:298.3, laps:70, lapLen:4.261, vitesse:"229.64 km/h", pit:"19.5s", puissance:11, maniab:9, accel:10, appui:"Moyenne", depasse:"Difficile", suspension:"Moyenne", carburant:"Basse", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Las Vegas", dist:305.9, laps:50, lapLen:6.118, vitesse:"241.06 km/h", pit:"23s", puissance:12, maniab:11, accel:20, appui:"Bas", depasse:"Facile", suspension:"Moyenne", carburant:"Haute", usurePneus:"Moyenne", grip:"Bas" },
+  { flag:"🇶🇦", pays:"Qatar", name:"Losail", dist:306.7, laps:57, lapLen:5.381, vitesse:"239.08 km/h", pit:"24s", puissance:13, maniab:16, accel:9, appui:"Haut", depasse:"Difficile", suspension:"Souple", carburant:"Basse", usurePneus:"Moyenne", grip:"Elevé" },
+  { flag:"🇺🇸", pays:"États-Unis", name:"Miami", dist:308.4, laps:57, lapLen:5.411, vitesse:"232.54 km/h", pit:"17s", puissance:14, maniab:13, accel:11, appui:"Moyenne", depasse:"Normal", suspension:"Dur", carburant:"Basse", usurePneus:"Basse", grip:"Elevé" },
+];
+
+// Color mapping for label values
+const TD_COLORS = {
+  usurePneus: { "Très basse":"#2ecc71", "Basse":"#3b9ef5", "Moyenne":"#f1c40f", "Haute":"#e67e22", "Très haute":"#e74c3c" },
+  grip:       { "Très bas":"#e74c3c", "Bas":"#e67e22", "Normal":"#f1c40f", "Elevé":"#3b9ef5", "Très élevé":"#2ecc71" },
+  appui:      { "Bas":"#3b9ef5", "Moyenne":"#f1c40f", "Haut":"#e74c3c" },
+  depasse:    { "Très facile":"#2ecc71", "Facile":"#3b9ef5", "Normal":"#f1c40f", "Difficile":"#e67e22", "Très difficile":"#e74c3c" },
+  suspension: { "Souple":"#3b9ef5", "Moyenne":"#f1c40f", "Dur":"#e74c3c" },
+  carburant:  { "Très basse":"#2ecc71", "Basse":"#3b9ef5", "Moyenne":"#f1c40f", "Haute":"#e67e22", "Très haute":"#e74c3c" },
+};
+
+function tdColorBadge(val, type) {
+  const col = (TD_COLORS[type] || {})[val] || 'var(--muted)';
+  return `<span style="display:inline-block;font-family:'Rajdhani',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.06em;padding:.2rem .65rem;border-radius:6px;background:${col}22;color:${col};border:1px solid ${col}55;">${val}</span>`;
+}
+
+function toolGproTyreDegHTML() {
+  const selectStyle = `width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;`;
+  const trackOpts = GPRO_TRACKS_DEG.map((t, i) =>
+    `<option value="${i}">${t.flag} ${t.name} — ${t.pays}</option>`
+  ).join('');
+  return `
+  <div class="tool-panel" style="max-width:900px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Dégradation pneus (Post-Race)</h2>
+      <p>Calculez l'usure de vos pneus par kilomètre à partir de votre tour de pitstop et de l'usure restante.</p>
+    </div>
+
+    <!-- CIRCUIT -->
+    <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.25);margin-bottom:1.4rem;">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🏁</span> Circuit</div>
+      <div class="field" style="margin:0;">
+        <select id="td-track" onchange="tdSelectTrack()" style="${selectStyle}">
+          <option value="">— Sélectionnez un circuit —</option>
+          ${trackOpts}
+        </select>
+      </div>
+    </div>
+
+    <!-- FICHE CIRCUIT -->
+    <div id="td-circuit-info" style="display:none;margin-bottom:1.4rem;"></div>
+
+    <!-- INPUTS -->
+    <div class="calc-grid fadein fadein-d2" style="margin-bottom:1.4rem;">
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">Tour</span> Tour de pitstop</div>
+        <div class="field">
+          <label>Numéro du tour d'arrêt</label>
+          <input type="number" id="td-lap" placeholder="ex : 40" min="1" step="1"
+            oninput="calcTyreDeg()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.3rem;font-weight:700;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+        <div class="formula-hint" id="td-km-hint" style="margin-top:.4rem;"></div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">Usure</span> Pneus au pitstop</div>
+        <div class="field">
+          <label>Usure restante au pitstop (%)</label>
+          <input type="number" id="td-remaining" placeholder="ex : 19" min="0" max="100" step="0.1"
+            oninput="calcTyreDeg()"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.3rem;font-weight:700;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(232,82,42,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+      </div>
+    </div>
+
+    <!-- RÉSULTATS -->
+    <div id="td-results"></div>
+  </div>`;
+}
+
+function initGproTyreDeg() {
+  // Reset on tool load
+}
+
+function tdSelectTrack() {
+  const idx = document.getElementById('td-track').value;
+  const info = document.getElementById('td-circuit-info');
+  if (idx === '') { info.style.display = 'none'; return; }
+  const t = GPRO_TRACKS_DEG[parseInt(idx)];
+
+  const stats = [
+    { label: '📏 Longueur course', val: t.dist + ' km', plain: true },
+    { label: '🔄 Tours',           val: t.laps,          plain: true },
+    { label: '📐 Longueur tour',   val: t.lapLen + ' km',plain: true },
+    { label: '⚡ Vitesse moy.',    val: t.vitesse,        plain: true },
+    { label: '🔩 PIT',             val: t.pit,            plain: true },
+    { label: '💪 Puissance',       val: t.puissance,     plain: true },
+    { label: '🎮 Maniabilité',     val: t.maniab,        plain: true },
+    { label: '🚀 Accélération',    val: t.accel,         plain: true },
+    { label: '⬇️ Force d\'appui', val: t.appui,         type: 'appui' },
+    { label: '🏁 Dépassement',     val: t.depasse,       type: 'depasse' },
+    { label: '🔧 Suspension',      val: t.suspension,    type: 'suspension' },
+    { label: '⛽ Carburant',       val: t.carburant,     type: 'carburant' },
+    { label: '🔴 Usure pneus',     val: t.usurePneus,   type: 'usurePneus' },
+    { label: '🟢 Grip',            val: t.grip,          type: 'grip' },
+  ];
+
+  info.style.display = 'block';
+  info.innerHTML = `
+    <div class="calc-card" style="border-color:rgba(59,158,245,.35);background:rgba(59,158,245,.04);padding:1.4rem 1.6rem;">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;">${t.flag}</span>
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);">${t.name}</div>
+          <div style="font-size:.78rem;color:var(--muted);letter-spacing:.06em;">${t.pays}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem 1.2rem;">
+        ${stats.map(s => `
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.35rem;">${s.label}</div>
+          <div>${s.type ? tdColorBadge(s.val, s.type) : `<span style="font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;color:var(--text);">${s.val}</span>`}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
+  calcTyreDeg();
+}
+
+function calcTyreDeg() {
+  const idx       = document.getElementById('td-track').value;
+  const lapStop   = parseFloat(document.getElementById('td-lap').value);
+  const remaining = parseFloat(document.getElementById('td-remaining').value);
+  const results   = document.getElementById('td-results');
+  const kmHint    = document.getElementById('td-km-hint');
+  if (!results) return;
+
+  if (idx === '') {
+    if (kmHint) kmHint.textContent = '';
+    results.innerHTML = '';
+    return;
+  }
+
+  const t = GPRO_TRACKS_DEG[parseInt(idx)];
+
+  // Show km hint live as user types lap
+  if (!isNaN(lapStop) && lapStop > 0 && kmHint) {
+    const km = (lapStop * t.lapLen).toFixed(2);
+    kmHint.innerHTML = `${lapStop} tours × ${t.lapLen} km = <strong style="color:#3b9ef5">${km} km</strong> parcourus`;
+  } else if (kmHint) {
+    kmHint.textContent = '';
+  }
+
+  if (isNaN(lapStop) || isNaN(remaining) || lapStop <= 0) {
+    results.innerHTML = '';
+    return;
+  }
+
+  const kmDone   = lapStop * t.lapLen;
+  const wearUsed = 100 - remaining;
+
+  if (wearUsed <= 0) {
+    results.innerHTML = `<div style="color:var(--muted);font-size:.85rem;font-style:italic;">Usure consommée nulle — les pneus sont encore neufs à ce tour.</div>`;
+    return;
+  }
+
+  const kmPer1pct = kmDone / wearUsed;
+  const pctPerKm  = wearUsed / kmDone;
+
+  // Wear color
+  const wearCol = remaining <= 20 ? '#e74c3c' : remaining <= 40 ? '#e67e22' : remaining <= 60 ? '#f1c40f' : '#2ecc71';
+
+  results.innerHTML = `
+    <!-- RÉSULTATS PRINCIPAUX -->
+    <div class="calc-card fadein" style="background:rgba(232,82,42,.04);border-color:rgba(232,82,42,.25);margin-bottom:1rem;">
+      <div class="card-title"><span class="tag">Résultats</span> Analyse d'usure — Tour ${lapStop}</div>
+
+      <!-- Récap visuel -->
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:1.4rem;padding:.9rem 1.1rem;background:var(--surface2);border-radius:10px;flex-wrap:wrap;">
+        <span style="font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);">
+          ${lapStop} tours × ${t.lapLen} km/tour
+        </span>
+        <span style="color:var(--border);">=</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;color:#3b9ef5;">${kmDone.toFixed(2)} km</span>
+        <span style="color:var(--border);">·</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.1em;color:var(--muted);">Usure restante</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;color:${wearCol};">${remaining.toFixed(1)}%</span>
+        <span style="color:var(--border);">→</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.1em;color:var(--muted);">Consommée</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent2);">${wearUsed.toFixed(1)}%</span>
+      </div>
+
+      <!-- 3 métriques -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+
+        <div style="text-align:center;padding:1.2rem;background:rgba(59,158,245,.06);border:1px solid rgba(59,158,245,.2);border-radius:12px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.6rem;">Km parcourus</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:2.4rem;font-weight:700;color:#3b9ef5;line-height:1;">${kmDone.toFixed(2)}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">km</div>
+        </div>
+
+        <div style="text-align:center;padding:1.2rem;background:rgba(232,82,42,.06);border:1px solid rgba(232,82,42,.2);border-radius:12px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--accent2);margin-bottom:.6rem;">Km pour 1% d'usure</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:2.4rem;font-weight:700;color:var(--accent2);line-height:1;">${kmPer1pct.toFixed(3)}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">km / %</div>
+          <div class="formula-hint" style="margin-top:.4rem;">${kmDone.toFixed(2)} ÷ ${wearUsed.toFixed(1)}</div>
+        </div>
+
+        <div style="text-align:center;padding:1.2rem;background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.2);border-radius:12px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#e74c3c;margin-bottom:.6rem;">% d'usure par km</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:2.4rem;font-weight:700;color:#e74c3c;line-height:1;">${pctPerKm.toFixed(4)}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">% / km</div>
+          <div class="formula-hint" style="margin-top:.4rem;">${wearUsed.toFixed(1)} ÷ ${kmDone.toFixed(2)}</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PROJECTION -->
+    <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.2);">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,254,.15);color:#3b9ef5;">📐</span> Projection sur le reste de la course</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div class="field" style="margin:0;">
+          <label>Tours restants à parcourir</label>
+          <input type="number" id="td-proj-laps" placeholder="ex : 31"
+            min="1" step="1" oninput="calcTyreDegProjection(${pctPerKm.toFixed(6)}, ${t.lapLen})"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1.1rem;font-weight:500;outline:none;-moz-appearance:textfield;transition:border-color .2s,box-shadow .2s;"
+            onfocus="this.style.borderColor='#3b9ef5';this.style.boxShadow='0 0 0 3px rgba(59,158,245,.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'" />
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Usure supplémentaire estimée</label>
+          <div class="result-box" id="td-proj-result"><span class="placeholder">—</span></div>
+        </div>
+      </div>
+      <div id="td-proj-detail" style="font-size:.75rem;color:var(--muted);margin-top:.2rem;"></div>
+    </div>`;
+}
+
+function calcTyreDegProjection(pctPerKm, lapLen) {
+  const laps = parseFloat(document.getElementById('td-proj-laps').value);
+  const box  = document.getElementById('td-proj-result');
+  const detail = document.getElementById('td-proj-detail');
+  if (!box) return;
+  if (isNaN(laps) || laps <= 0) {
+    box.innerHTML = `<span class="placeholder">—</span>`;
+    if (detail) detail.textContent = '';
+    return;
+  }
+  const kmProj  = laps * lapLen;
+  const wearAdd = kmProj * pctPerKm;
+  const {cls}   = wearColor(wearAdd);
+  box.innerHTML = `<span class="${cls}">${wearAdd.toFixed(2)} %</span>`;
+  if (detail) detail.innerHTML = `${laps} tours × ${lapLen} km = ${kmProj.toFixed(2)} km × ${pctPerKm.toFixed(4)} %/km`;
+}
+
+
+
 </body>
 </html>
