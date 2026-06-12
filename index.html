@@ -1623,7 +1623,7 @@ function toolGproSetupHTML() {
   <div class="tool-panel" style="max-width:1100px;">
     <div class="tool-header fadein">
       <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Calculateur d'installation</h2>
-      <p>Trouvez les réglages optimaux par bissection à partir des retours pilote. Commencez toujours à 500 sur tous les réglages.</p>
+      <p>Trouvez les réglages optimaux par bissection à partir des retours pilote. Commencez à 500 ou aux valeurs de base du circuit. Un feedback <strong style="color:#2ecc71;">0 = Satisfait</strong> verrouille le composant — seuls les composants non convergés continuent d'être bissecter.</p>
     </div>
 
     <!-- PILOTE -->
@@ -1748,6 +1748,7 @@ function renderGproTable() {
   const wrap = document.getElementById('gpro-table-wrap');
   if (!wrap) return;
   const latestIdx = gpro.rows.length - 1;
+  const latestRow = gpro.rows[latestIdx];
   const PART_DISPLAY = [
     { p:'ailAv', label:'Ail. AV' },
     { p:'ailAr', label:'Ail. AR' },
@@ -1757,7 +1758,40 @@ function renderGproTable() {
     { p:'sus',   label:'Suspension' }
   ];
 
-  let html = '';
+  // Compute current bounds for the latest row (for progress display)
+  const latestBounds = {};
+  PART_DISPLAY.forEach(({ p }) => {
+    if (latestRow.feedbacks[p] === 0) {
+      latestBounds[p] = { min: latestRow.vals[p], max: latestRow.vals[p], locked: true };
+      return;
+    }
+    let bMin = 0, bMax = 999;
+    gpro.rows.forEach(r => {
+      const fb = r.feedbacks[p];
+      const val = r.vals[p];
+      if (fb === null) return;
+      if (fb > 0) bMax = Math.min(bMax, val - 1);
+      else if (fb < 0) bMin = Math.max(bMin, val + 1);
+    });
+    if (bMin > bMax) bMin = bMax = latestRow.vals[p];
+    latestBounds[p] = { min: bMin, max: bMax, locked: false };
+  });
+
+  // Progress bar: how many components are locked
+  const lockedCount = PART_DISPLAY.filter(({ p }) => latestRow.feedbacks[p] === 0).length;
+  const progressHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:.8rem 1.2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#3b9ef5;">Progression</div>
+      <div style="display:flex;gap:.3rem;align-items:center;">
+        ${PART_DISPLAY.map(({ p, label }) => {
+          const locked = latestRow.feedbacks[p] === 0;
+          return `<div title="${label}" style="width:28px;height:10px;border-radius:4px;background:${locked ? '#2ecc71' : 'var(--border)'};transition:background .3s;"></div>`;
+        }).join('')}
+      </div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:.85rem;font-weight:700;color:${lockedCount === 6 ? '#2ecc71' : '#3b9ef5'};">${lockedCount}/6 convergés</div>
+    </div>`;
+
+  let html = progressHTML;
   gpro.rows.forEach((row, idx) => {
     const isLatest = idx === latestIdx;
     html += `<div class="setup-row-card ${isLatest ? 'setup-row-latest' : ''}">
@@ -1769,21 +1803,41 @@ function renderGproTable() {
 
     PART_DISPLAY.forEach(({ p, label }) => {
       const isEditable = isLatest && idx === 0;
+      const isLocked = isLatest && row.feedbacks[p] === 0;
+      const bounds = isLatest ? latestBounds[p] : null;
+      const rangeSize = bounds && !bounds.locked ? bounds.max - bounds.min : null;
+
       const valHTML = isEditable
         ? `<input type="number" class="setup-input-num" value="${row.vals[p]}" min="0" max="999"
                   onchange="gpro_setVal(0,'${p}',+this.value)" />`
-        : `<span class="setup-val-big">${row.vals[p]}</span>`;
+        : `<span class="setup-val-big" style="${isLocked ? 'color:#2ecc71;' : ''}">${row.vals[p]}</span>`;
+
+      // Range indicator for latest row
+      let rangeHTML = '';
+      if (isLatest && bounds && !bounds.locked) {
+        rangeHTML = `<div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:var(--muted);margin-top:.25rem;letter-spacing:.04em;">
+          Zone : ${bounds.min}–${bounds.max} <span style="color:${rangeSize <= 50 ? '#2ecc71' : rangeSize <= 150 ? '#f1c40f' : '#e67e22'};">(±${Math.round(rangeSize/2)})</span>
+        </div>`;
+      } else if (isLatest && isLocked) {
+        rangeHTML = `<div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:#2ecc71;margin-top:.25rem;">✓ Convergé</div>`;
+      }
 
       let fbHTML = '';
       if (isLatest) {
-        const opts = getFeedbackOptions(p).map(o => {
-          const sel = row.feedbacks[p] === o.v ? 'selected' : '';
-          return `<option value="${o.v}" ${sel}>${o.label}</option>`;
-        }).join('');
-        fbHTML = `<select class="setup-select-full" onchange="gpro_setFeedback(${idx},'${p}',+this.value)">
-          <option value="" ${row.feedbacks[p]===null?'selected':''}>— Retour pilote —</option>
-          ${opts}
-        </select>`;
+        if (isLocked) {
+          // Locked: show green badge but still allow changing (in case user wants to re-evaluate)
+          fbHTML = `<span class="feedback-badge fb-zero" style="background:rgba(46,204,113,.2);color:#2ecc71;border-color:rgba(46,204,113,.5);">0 ✓ Satisfait</span>
+            <div class="fb-subtext" style="color:#2ecc71;margin-top:.3rem;font-size:.62rem;">Composant verrouillé</div>`;
+        } else {
+          const opts = getFeedbackOptions(p).map(o => {
+            const sel = row.feedbacks[p] === o.v ? 'selected' : '';
+            return `<option value="${o.v}" ${sel}>${o.label}</option>`;
+          }).join('');
+          fbHTML = `<select class="setup-select-full" onchange="gpro_setFeedback(${idx},'${p}',+this.value)">
+            <option value="" ${row.feedbacks[p]===null?'selected':''}>— Retour pilote —</option>
+            ${opts}
+          </select>`;
+        }
       } else {
         const v = row.feedbacks[p];
         fbHTML = `<span class="feedback-badge ${fbClass(v)}">${fbLabel(v)}</span>
@@ -1791,8 +1845,8 @@ function renderGproTable() {
       }
 
       html += `<div class="setup-part-cell">
-        <div class="setup-part-label">${label}</div>
-        <div class="setup-part-val">${valHTML}</div>
+        <div class="setup-part-label" style="${isLocked && isLatest ? 'color:#2ecc71;' : ''}">${label}</div>
+        <div class="setup-part-val">${valHTML}${rangeHTML}</div>
         <div class="setup-part-fb">${fbHTML}</div>
       </div>`;
     });
@@ -1812,7 +1866,7 @@ function gpro_setVal(rowIdx, part, val) {
 }
 
 function gpro_calculate() {
-  if (!gpro.marge && gpro.marge !== 0) {
+  if (gpro.marge === null) {
     alert("Veuillez renseigner les connaissances techniques et l'expérience du pilote pour calculer la marge d'acceptation.");
     return;
   }
@@ -1827,12 +1881,31 @@ function gpro_calculate() {
     }
   }
 
-  const marge = gpro.marge;
+  // ── Convergence : un composant est convergé si son dernier feedback est 0 ──
+  const converged = PARTS.every(p => row.feedbacks[p] === 0);
+  document.getElementById('gpro-converge-badge').style.display = converged ? 'inline-flex' : 'none';
+
+  if (converged) {
+    renderGproTable();
+    return;
+  }
+
   const newVals = {};
   const newBounds = {};
 
   PARTS.forEach(p => {
+    // Si ce composant est déjà satisfait (feedback 0 sur le dernier tour) → ne pas changer
+    if (row.feedbacks[p] === 0) {
+      newVals[p] = row.vals[p];
+      newBounds[p] = { min: row.vals[p], max: row.vals[p], locked: true };
+      return;
+    }
+
     // ── Reconstruire les bornes depuis TOUS les tours passés ──
+    // Règle : feedback > 0 = valeur trop haute → bMax = val - 1
+    //         feedback < 0 = valeur trop basse  → bMin = val + 1
+    //         feedback = 0 = valeur OK, mais un tour ultérieur a donné ≠0 → on ignore ce 0 intermédiaire
+    //                        (le dernier feedback ≠ 0 est ce qui compte pour les bornes)
     let bMin = 0, bMax = 999;
 
     gpro.rows.forEach(r => {
@@ -1840,37 +1913,32 @@ function gpro_calculate() {
       const val = r.vals[p];
       if (fb === null) return;
       if (fb > 0) {
-        // Trop haut → la cible est strictement en dessous
+        // Trop haut : cible strictement en dessous
         bMax = Math.min(bMax, val - 1);
       } else if (fb < 0) {
-        // Trop bas → la cible est strictement au dessus
+        // Trop bas : cible strictement au dessus
         bMin = Math.max(bMin, val + 1);
-      } else {
-        // Satisfait → cette valeur est valide, donc la cible >= val
-        // On remonte la borne basse pour continuer à bissecter vers le haut
-        bMin = Math.max(bMin, val);
       }
+      // feedback 0 intermédiaire : ne pas modifier les bornes (le pilote était satisfait
+      // à ce moment mais les tours suivants ont montré qu'on peut affiner davantage)
     });
 
-    // Sécurité
-    if (bMin > bMax) bMin = bMax = Math.round((bMin + bMax) / 2);
+    // Sécurité : bornes croisées (ne devrait pas arriver avec une bonne saisie)
+    if (bMin > bMax) {
+      // Conflit de données : on garde la dernière valeur connue et on signale
+      bMin = bMax = row.vals[p];
+    }
 
     newBounds[p] = { min: bMin, max: bMax };
 
-    // ── Prochaine valeur = milieu de la zone restante ──
+    // ── Prochaine valeur = milieu de la zone restante (bissection pure) ──
     const mid = Math.round((bMin + bMax) / 2);
     newVals[p] = clamp(mid, 0, 999);
   });
 
-  // ── Convergence : toutes les zones sont serrées (écart <= 1) ──
-  const converged = PARTS.every(p => (newBounds[p].max - newBounds[p].min) <= 1);
-  document.getElementById('gpro-converge-badge').style.display = converged ? 'inline-flex' : 'none';
-
-  if (!converged) {
-    gpro.rows.push(makeRow(newVals, newBounds));
-  }
-
+  gpro.rows.push(makeRow(newVals, newBounds));
   renderGproTable();
+
   // Scroll to bottom
   setTimeout(() => {
     const wrap = document.getElementById('gpro-table-wrap');
