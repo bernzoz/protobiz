@@ -6,7 +6,7 @@ Michelin NE;Maxi clou;Neige;Toutes;Froid;;;;;;
 Michelin PC;Tendre;Asphalte;Pluie;Chaud;;;;;;
 Michelin TP;Tres tendre;Terre;Pluie;Chaud/Froid;;;;;;
 Michelin PF;Tres tendre;Asphalte;Pluie;Froid;;;;;;
-Michelin SC;Medium;Asphalte;Sec;Chaud;;;;;;
+Michelin SC;Medium;Asphalte;Sec;Chaud;0.36;;;;;
 Michelin TS;Medium;Terre;Sec;Chaud/Froid;;;;;;
 Michelin SF;Tres tendre;Asphalte;Sec;Froid;0.43;;;;;
 Michelin 5X;Pilot Sport 5;Asphalte;Toutes;Chaud/Froid;;;;;;
