@@ -1877,7 +1877,8 @@ function renderGproTable() {
 
   wrap.innerHTML = html;
   updateToursCounter();
-}(rowIdx, part, val) {
+}
+function gpro_setFeedback(rowIdx, part, val) {
   gpro.rows[rowIdx].feedbacks[part] = val;
   renderGproTable();
 }
