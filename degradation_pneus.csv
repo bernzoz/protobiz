@@ -7,7 +7,7 @@ Michelin PC;Tendre;Asphalte;Pluie;Chaud;;;;;;
 Michelin TP;Tres tendre;Terre;Pluie;Chaud/Froid;;;;;;
 Michelin PF;Tres tendre;Asphalte;Pluie;Froid;;;;;;
 Michelin SC;Medium;Asphalte;Sec;Chaud;0.36;0.33;0.38;;;
-Michelin TS;Medium;Terre;Sec;Chaud/Froid;;0.33;;;;
+Michelin TS;Medium;Terre;Sec;Chaud/Froid;0.36;0.33;;;;
 Michelin SF;Tres tendre;Asphalte;Sec;Froid;0.43;;;;;
 Michelin 5X;Pilot Sport 5;Asphalte;Toutes;Chaud/Froid;;;;;;
 Pirelli IC;Medium;Asphalte;Intermediaire;Chaud;;;;;;
