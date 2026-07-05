@@ -1,6 +1,6 @@
 Pneu;Gomme;Surface;Meteo;Temperature;Attaque Poussee;Attaque Normale;Grosse Attaque;Calme;Ramener Auto;Tres Grosse Attaque
 Michelin IC;Medium;Asphalte;Intermediaire;Chaud;;;;;;
-Michelin TI;Tendre;Terre;Intermediaire;Chaud/Froid;;0.35;;;;
+Michelin TI;Tendre;Terre;Intermediaire;Chaud/Froid;0.38;0.35;;;;
 Michelin IF;Tendre;Asphalte;Intermediaire;Froid;;;;;;
 Michelin NE;Maxi clou;Neige;Toutes;Froid;;;;;;
 Michelin PC;Tendre;Asphalte;Pluie;Chaud;;;;;;
