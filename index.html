@@ -2647,10 +2647,6 @@ const FUEL_LEVEL_COLORS = {
 };
 
 function toolGproFuelHTML() {
-  const trackOpts = FUEL_TRACKS.map((t, i) =>
-    `<option value="${i}">${t.flag} ${t.name}</option>`
-  ).join('');
-
   return `
   <div class="tool-panel" style="max-width:860px;">
     <div class="tool-header fadein">
@@ -2664,8 +2660,7 @@ function toolGproFuelHTML() {
         <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🏁</span> Circuit</div>
         <div class="field" style="margin:0;">
           <select id="fuel-track" onchange="calcFuel()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;cursor:pointer;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7485' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem;transition:border-color .2s;">
-            <option value="">— Sélectionnez un circuit —</option>
-            ${trackOpts}
+            <option value="">⏳ Chargement des circuits…</option>
           </select>
         </div>
       </div>
@@ -2761,7 +2756,20 @@ function toolGproFuelHTML() {
 }
 
 function initGproFuel() {
-  // nothing to init — reactive via calcFuel()
+  const sel = document.getElementById('fuel-track');
+  if (sel) sel.disabled = true;
+
+  waitForTracksData(() => {
+    if (!sel) return;
+    if (tracksData.error) {
+      sel.innerHTML = `<option value="">⚠️ Erreur : ${tracksData.error}</option>`;
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">— Sélectionnez un circuit —</option>' +
+      tracksData.fuel.map((t, i) => `<option value="${i}">${t.flag} ${t.name}</option>`).join('');
+  });
 }
 
 function calcFuel() {
@@ -2785,7 +2793,7 @@ function calcFuel() {
     return;
   }
 
-  const track  = FUEL_TRACKS[parseInt(trackIdx)];
+  const track  = tracksData.fuel[parseInt(trackIdx)];
   const coeffs = FUEL_COEFFS[track.fuel][weather];
   const coeff  = coeffs[parseInt(levelIdx)];
   const total  = parseFloat((track.dist * coeff).toFixed(2));
