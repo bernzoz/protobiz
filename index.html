@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PROTOBIZ</title>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
       --bg: #0a0c10;
@@ -854,6 +855,7 @@
 /* ─── CONFIG ─── */
 const PASSWORD = 'rallye2024';
 const CSV_PATH = 'degradation_pneus.csv';
+const TRACKS_XLSX_PATH = 'TRACKS.xlsx';
 
 const BRANDS = ['Dmack','Hankook','Kumho','Michelin','Pirelli','Toyo','Yokohama'];
 const ATTACKS = ['Attaque Poussee','Attaque Normale','Grosse Attaque','Calme','Ramener Auto','Tres Grosse Attaque'];
@@ -918,6 +920,49 @@ const GAMES = {
 let currentGame = 'rg';
 let currentTool = 'wear';
 let tireData = [];
+// État des données circuits chargées depuis TRACKS.xlsx
+let tracksData = {
+  setup: [],     // feuille "Setup"   -> ailAv, ailAr, mot, fre, bav, sus
+  fuel: [],      // feuille "Fuel"    -> laps, dist, fuel
+  tyreDeg: [],   // feuille "TyreDeg" -> toutes les colonnes post-race
+  loaded: false,
+  loading: false,
+  error: null
+};
+
+async function loadTracksData() {
+  if (tracksData.loaded || tracksData.loading) return;
+  tracksData.loading = true;
+  try {
+    const resp = await fetch(TRACKS_XLSX_PATH);
+    if (!resp.ok) throw new Error('TRACKS.xlsx introuvable');
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    const sheetToRows = (name) => {
+      const ws = wb.Sheets[name];
+      if (!ws) return [];
+      return XLSX.utils.sheet_to_json(ws, { defval: null });
+    };
+
+    tracksData.setup   = sheetToRows('Setup');
+    tracksData.fuel     = sheetToRows('Fuel');
+    tracksData.tyreDeg  = sheetToRows('TyreDeg');
+    tracksData.loaded = true;
+    tracksData.error = null;
+
+    // Vérification temporaire — à retirer plus tard
+    console.log('TRACKS.xlsx chargé :', tracksData);
+  } catch (e) {
+    tracksData.error = e.message;
+    console.error('Erreur chargement TRACKS.xlsx :', e);
+  } finally {
+    tracksData.loading = false;
+  }
+}
+
+// Lance le chargement dès l'ouverture de la page (en arrière-plan)
+loadTracksData();
 
 /* ─── PASSWORD ─── */
 function checkPassword() {
