@@ -963,6 +963,17 @@ async function loadTracksData() {
 
 // Lance le chargement dès l'ouverture de la page (en arrière-plan)
 loadTracksData();
+  
+// Exécute cb() dès que tracksData est chargé (immédiatement si déjà chargé, sinon on patiente)
+function waitForTracksData(cb) {
+  if (tracksData.loaded || tracksData.error) { cb(); return; }
+  const check = setInterval(() => {
+    if (tracksData.loaded || tracksData.error) {
+      clearInterval(check);
+      cb();
+    }
+  }, 150);
+}
 
 /* ─── PASSWORD ─── */
 function checkPassword() {
@@ -1743,12 +1754,25 @@ function initGproSetup() {
   gpro.rows.push(makeRow({ ailAv:500, ailAr:500, mot:500, fre:500, bav:500, sus:500 }, null));
   renderGproTable();
   updateToursCounter();
-  // Populate track selector
+
   const sel = document.getElementById('gpro-track-select');
   if (sel) {
-    sel.innerHTML = '<option value="">— Sélectionnez un circuit —</option>' +
-      TRACKS.map((t, i) => `<option value="${i}">${t.flag} ${t.name}</option>`).join('');
+    sel.innerHTML = '<option value="">⏳ Chargement des circuits…</option>';
+    sel.disabled = true;
   }
+
+  waitForTracksData(() => {
+    if (!sel) return;
+    if (tracksData.error) {
+      sel.innerHTML = `<option value="">⚠️ Erreur : ${tracksData.error}</option>`;
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">— Sélectionnez un circuit —</option>' +
+      tracksData.setup.map((t, i) => `<option value="${i}">${t.flag} ${t.name}</option>`).join('');
+  });
+
   const te = document.getElementById('gpro-tech');
   const ex = document.getElementById('gpro-exp');
   if (te) te.addEventListener('keydown', e => { if(e.key==='Enter') gpro_calculate(); });
@@ -1759,8 +1783,8 @@ function gpro_selectTrack() {
   const sel = document.getElementById('gpro-track-select');
   const idx = parseInt(sel.value);
   if (isNaN(idx)) return;
-  const t = TRACKS[idx];
-  // Apply track base values to row 0
+  const t = tracksData.setup[idx];
+  if (!t) return;
   gpro.rows[0].vals = { ailAv: t.ailAv, ailAr: t.ailAr, mot: t.mot, fre: t.fre, bav: t.bav, sus: t.sus };
   renderGproTable();
 }
