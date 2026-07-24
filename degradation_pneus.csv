@@ -35,7 +35,7 @@ Yokohama TI;Medium;Terre;Intermediaire;Chaud/Froid;0.30;;;;;
 Yokohama IF;Medium;Asphalte;Intermediaire;Froid;;;;;;
 Yokohama NE;Clou;Neige;Toutes;Froid;;;;;;
 Yokohama PC;Medium;Asphalte;Pluie;Chaud;;;;;;
-Yokohama TP;Tendre;Terre;Pluie;Chaud/Froid;0.33;;;;;
+Yokohama TP;Tendre;Terre;Pluie;Chaud/Froid;0.33;0.30;;;;
 Yokohama PF;Tendre;Asphalte;Pluie;Froid;0.33;0.30;;;;
 Yokohama SC;Medium/dur;Asphalte;Sec;Chaud;;;;;;
 Yokohama TS;Medium/dur;Terre;Sec;Chaud/Froid;;;;;;
