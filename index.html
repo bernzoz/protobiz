@@ -1975,17 +1975,98 @@ function sc_confirmSpeciale(dayIdx) {
   renderTimeline();
 }
 
-/* ─── RÉSULTAT FINAL (aperçu, sera enrichi à l'étape 5) ─── */
+/* ─── ÉTAPE 5 : RÉSULTAT FINAL ─── */
 function sc_showFinalResult() {
+  const container = document.getElementById('supercalc-content');
+  if (!container) return;
   const r = superCalc.result;
-  alert(
-    `Résultat actuel :\n` +
-    `Usure voiture : ${r.carUsure.toFixed(2)}%\n` +
-    `XP voiture : ${r.xpVoiture}\n` +
-    `XP asphalte : ${r.xpAsphalte}\n` +
-    `XP terre/neige : ${r.xpTerreNeige}\n` +
-    `Confiance : ${r.confiance}`
-  );
+  const c = superCalc.config;
+
+  const gainXpVoiture   = r.xpVoiture - c.xpVoiture;
+  const gainXpAsphalte  = r.xpAsphalte - c.xpAsphalte;
+  const gainXpTerre     = r.xpTerreNeige - c.xpTerreNeige;
+  const gainConfiance   = r.confiance - c.confiance;
+  const gainUsureVoit   = r.carUsure - c.usureInitiale;
+
+  const sponsorLabels = c.sponsors.map(id => SPONSORS_LIST.find(s => s.id === id)?.label).filter(Boolean);
+
+  // Récap pneus par jour (usure finale de chaque train utilisé sur chaque jour)
+  const tireRecapHTML = superCalc.days.map(day => {
+    const tireRow = tireData[day.finalActiveTireIdx];
+    const usureCol = day.finalTireUsure <= 20 ? '#2ecc71' : day.finalTireUsure <= 50 ? '#f1c40f' : day.finalTireUsure <= 80 ? '#e67e22' : '#e74c3c';
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;">Jour ${day.numero} <span style="color:var(--muted);font-weight:400;font-size:.78rem;">— ${day.surface}</span></div>
+        <div style="font-size:.75rem;color:var(--muted);">${tireRow ? tireRow.pneu + ' — ' + tireRow.surface + '/' + tireRow.meteo : '?'}</div>
+      </div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:1.3rem;font-weight:700;color:${usureCol};">${day.finalTireUsure.toFixed(2)}%</div>
+    </div>`;
+  }).join('');
+
+  const usureVoitCol = r.carUsure <= 20 ? '#2ecc71' : r.carUsure <= 50 ? '#f1c40f' : r.carUsure <= 80 ? '#e67e22' : '#e74c3c';
+
+  container.innerHTML = `
+    <div class="section-label fadein">Résultat final du rallye</div>
+
+    <div style="display:flex;gap:.8rem;margin-bottom:1.4rem;">
+      <button class="btn-reset-setup" onclick="renderTimeline()">← Retour timeline</button>
+      <button class="btn-reset-setup" onclick="sc_resetAll()" style="color:#e74c3c;border-color:rgba(231,76,60,.3);">↺ Nouveau rallye</button>
+    </div>
+
+    ${sponsorLabels.length ? `
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1.4rem;">
+      Sponsors actifs : ${sponsorLabels.map(l => `<span style="background:rgba(59,158,245,.12);color:#3b9ef5;border:1px solid rgba(59,158,245,.3);border-radius:6px;padding:.15rem .6rem;margin-right:.4rem;font-size:.75rem;">${l}</span>`).join('')}
+    </div>` : ''}
+
+    <div class="calc-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.4rem;">
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">Usure voiture finale</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:${usureVoitCol};">${r.carUsure.toFixed(2)}%</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">${gainUsureVoit >= 0 ? '+' : ''}${gainUsureVoit.toFixed(2)}% depuis le départ</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">XP Voiture</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#3b9ef5;">${r.xpVoiture}</div>
+        <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpVoiture} gagné</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">XP Asphalte</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:var(--accent2);">${r.xpAsphalte}</div>
+        <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpAsphalte} gagné</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">XP Terre/Neige</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#e67e22;">${r.xpTerreNeige}</div>
+        <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpTerre} gagné</div>
+      </div>
+    </div>
+
+    <div class="calc-card" style="margin-bottom:1.4rem;">
+      <div class="card-title">Confiance finale</div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2rem;font-weight:700;color:#9b59b6;">${r.confiance}</div>
+        <div style="font-size:.8rem;color:${gainConfiance >= 0 ? '#2ecc71' : '#e74c3c'};">${gainConfiance >= 0 ? '+' : ''}${gainConfiance} depuis le départ</div>
+      </div>
+    </div>
+
+    <div class="section-label">Usure des trains de pneus par jour</div>
+    <div class="calc-card" style="padding:0;overflow:hidden;margin-bottom:1.4rem;">
+      ${tireRecapHTML}
+    </div>
+  `;
+}
+
+function sc_resetAll() {
+  superCalc = {
+    config: {
+      usureInitiale: null, xpVoiture: null, xpAsphalte: null,
+      xpTerreNeige: null, confiance: null, sponsors: []
+    },
+    started: false,
+    days: []
+  };
+  renderSuperCalcSetup();
 }
   
 function getBrand(pneu) {
