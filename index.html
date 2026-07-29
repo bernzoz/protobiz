@@ -1421,7 +1421,7 @@ let superCalc = {
 
 function sc_createTrain(tireIdx, usureInitiale, label) {
   const id = 't' + (superCalc.trains.length + 1);
-  const train = { id, tireIdx, label: label || `Train ${superCalc.trains.length + 1}`, usureActuelle: usureInitiale };
+  const train = { id, tireIdx, label: label || `Train ${superCalc.trains.length + 1}`, usureInitiale, usureActuelle: usureInitiale };
   superCalc.trains.push(train);
   return train;
 }
@@ -1806,6 +1806,7 @@ function sc_recompute() {
   let xpTerreNeige = cfg.xpTerreNeige;
   let confiance = cfg.confiance;
 
+  superCalc.trains.forEach(t => { t.usureActuelle = t.usureInitiale; });
   superCalc.days.forEach(day => {
     let activeTrain = sc_getTrain(day.trainId);
     day.computedItems = [];
