@@ -1673,7 +1673,7 @@ function renderTrainsList() {
       <div>
         <span class="tag">${t.label}</span>
         <span style="margin-left:.6rem;color:var(--muted);font-size:.85rem;">
-          ${tireData[t.tireIdx]?.pneu || '?'} — usure actuelle : <strong style="color:var(--text)">${t.usureActuelle.toFixed(1)}%</strong>
+          ${tireData[t.tireIdx]?.pneu || '?'} — usure actuelle : <strong style="color:var(--text)">${t.usureActuelle.toFixed(2)}%</strong>
         </span>
       </div>
     </div>
@@ -1743,7 +1743,7 @@ function renderDaysList() {
     <option value="">— Choisir —</option>
     ${superCalc.trains.map(t =>
       `<option value="${t.id}" ${d.trainId === t.id ? 'selected' : ''}>
-         ${t.label} — ${tireData[t.tireIdx]?.pneu} (usure actuelle : ${t.usureActuelle.toFixed(1)}%)
+         ${t.label} — ${tireData[t.tireIdx]?.pneu} (usure actuelle : ${t.usureActuelle.toFixed(2)}%)
        </option>`
     ).join('')}
   </select>
@@ -1897,7 +1897,7 @@ function renderTimeline() {
     html += `
     <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:.7rem 1rem;margin:1.4rem 0 .8rem;display:flex;align-items:center;gap:.7rem;">
       <span style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.1em;">Jour ${day.numero}</span>
-      <span style="color:var(--muted);font-size:.8rem;"> · pneu de départ : ${dayTrain ? `${dayTrain.label} — ${tireData[dayTrain.tireIdx]?.pneu || '?'} (${dayTrain.usureActuelle.toFixed(1)}%)` : '?'}</span>
+      <span style="color:var(--muted);font-size:.8rem;"> · pneu de départ : ${dayTrain ? `${dayTrain.label} — ${tireData[dayTrain.tireIdx]?.pneu || '?'} (${dayTrain.usureActuelle.toFixed(2)}%)` : '?'}</span>
     </div>`;
 
     day.computedItems.forEach((ci, iIdx) => {
@@ -1972,7 +1972,7 @@ function sc_openAssistanceForm(dayIdx) {
             ${key === 'changer-pneus' ? `
   <select id="sc-newtrain-${dayIdx}" style="margin-left:.5rem;" onchange="sc_onNewTrainChange(${dayIdx})">
     <option value="">— choisir un train —</option>
-    ${superCalc.trains.map(t => `<option value="${t.id}">${t.label} (${t.usureActuelle.toFixed(1)}%)</option>`).join('')}
+    ${superCalc.trains.map(t => `<option value="${t.id}">${t.label} (${t.usureActuelle.toFixed(2)}%)</option>`).join('')}
     <option value="__new__">+ Créer un nouveau train…</option>
   </select>
   <div id="sc-newtrain-form-${dayIdx}" style="margin-top:.4rem;"></div>
