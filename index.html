@@ -858,6 +858,55 @@ const CSV_PATH = '/data/degradation_pneus.csv';
 const CAR_CSV_PATH = '/data/degradation_voiture.csv';
 const TRACKS_XLSX_PATH = 'TRACKS.xlsx';
 
+// ─── DÉGRADATION VOITURE (supercalculateur) ───
+let carDegradation = {
+  data: null,     // { 'Attaque Poussee': 0.12, 'Attaque Normale': 0.08, ... }
+  loaded: false,
+  loading: false,
+  error: null
+};
+
+async function loadCarDegradationData() {
+  if (carDegradation.loaded || carDegradation.loading) return;
+  carDegradation.loading = true;
+  try {
+    const resp = await fetch(CAR_CSV_PATH);
+    if (!resp.ok) throw new Error('CSV introuvable');
+    const text = await resp.text();
+    carDegradation.data = parseCarCSV(text);
+    carDegradation.loaded = true;
+    carDegradation.error = null;
+  } catch (e) {
+    carDegradation.error = e.message;
+    console.error('Erreur chargement degradation_voiture.csv :', e);
+  } finally {
+    carDegradation.loading = false;
+  }
+}
+
+function parseCarCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(';').map(h => h.trim());
+  const cols = lines[1].split(';');
+  const data = {};
+  for (let i = 1; i < headers.length; i++) {
+    data[headers[i]] = parseVal(cols[i]);
+  }
+  return data;
+}
+
+function waitForCarDegradation(cb) {
+  if (carDegradation.loaded || carDegradation.error) { cb(); return; }
+  const check = setInterval(() => {
+    if (carDegradation.loaded || carDegradation.error) {
+      clearInterval(check);
+      cb();
+    }
+  }, 150);
+}
+// ─── FIN DÉGRADATION VOITURE ───
+
 const BRANDS = ['Dmack','Hankook','Kumho','Michelin','Pirelli','Toyo','Yokohama'];
 const ATTACKS = ['Attaque Poussee','Attaque Normale','Grosse Attaque','Calme','Ramener Auto','Tres Grosse Attaque'];
 const ATTACK_LABELS = {
@@ -1333,55 +1382,6 @@ function parseVal(v) {
   if (!v || v.trim() === '') return null;
   return parseFloat(v.trim().replace(',','.')) || null;
 }
-
-// ─── DÉGRADATION VOITURE (supercalculateur) ───
-let carDegradation = {
-  data: null,     // { 'Attaque Poussee': 0.12, 'Attaque Normale': 0.08, ... }
-  loaded: false,
-  loading: false,
-  error: null
-};
-
-async function loadCarDegradationData() {
-  if (carDegradation.loaded || carDegradation.loading) return;
-  carDegradation.loading = true;
-  try {
-    const resp = await fetch(CAR_CSV_PATH);
-    if (!resp.ok) throw new Error('CSV introuvable');
-    const text = await resp.text();
-    carDegradation.data = parseCarCSV(text);
-    carDegradation.loaded = true;
-    carDegradation.error = null;
-  } catch (e) {
-    carDegradation.error = e.message;
-    console.error('Erreur chargement degradation_voiture.csv :', e);
-  } finally {
-    carDegradation.loading = false;
-  }
-}
-
-function parseCarCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return null;
-  const headers = lines[0].split(';').map(h => h.trim());
-  const cols = lines[1].split(';');
-  const data = {};
-  for (let i = 1; i < headers.length; i++) {
-    data[headers[i]] = parseVal(cols[i]);
-  }
-  return data;
-}
-
-function waitForCarDegradation(cb) {
-  if (carDegradation.loaded || carDegradation.error) { cb(); return; }
-  const check = setInterval(() => {
-    if (carDegradation.loaded || carDegradation.error) {
-      clearInterval(check);
-      cb();
-    }
-  }, 150);
-}
-// ─── FIN DÉGRADATION VOITURE ───
 
   /* ══════════════════════════════════════
    OUTIL RALLYE GAME : SUPERCALCULATEUR
