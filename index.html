@@ -1564,19 +1564,19 @@ function ensureTireDataLoaded(cb) {
     .catch(e => { console.error('Erreur chargement pneus (supercalc) :', e); cb(); });
 }
 
-function buildPneuOptionsHTML(selected) {
-  return tireData.map(t =>
-    `<option value="${t.pneu}" ${selected === t.pneu ? 'selected' : ''}>${t.pneu} (${t.gomme})</option>`
+function buildPneuOptionsHTML(selectedIdx) {
+  return tireData.map((t, i) =>
+    `<option value="${i}" ${String(selectedIdx) === String(i) ? 'selected' : ''}>${t.pneu} — ${t.surface}/${t.meteo}/${t.temp} (${t.gomme})</option>`
   ).join('');
 }
 
 function sc_addDay() {
-  if (superCalc.days.length >= 3) return;
+  if (superCalc.days.length >= 4) return;
   superCalc.days.push({
     numero: superCalc.days.length + 1,
     surface: '',
     meteo: '',
-    pneuTrain: '',
+    pneuTrainIdx: '',
     pneuUsureInitiale: null,
     items: []   // rempli à l'étape 4 (assistances / spéciales)
   });
@@ -1612,7 +1612,7 @@ function renderSuperCalcDays() {
       <div id="sc-days-list" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1.2rem;"></div>
 
       <div style="display:flex;gap:.8rem;margin-bottom:1.6rem;">
-        <button class="btn-calc-setup" onclick="sc_addDay()" ${superCalc.days.length >= 3 ? 'disabled' : ''} style="${superCalc.days.length >= 3 ? 'opacity:.4;cursor:not-allowed;' : ''}">+ Ajouter un jour</button>
+        <button class="btn-calc-setup" onclick="sc_addDay()" ${superCalc.days.length >= 4 ? 'disabled' : ''} style="${superCalc.days.length >= 4 ? 'opacity:.4;cursor:not-allowed;' : ''}">+ Ajouter un jour</button>
         <button class="btn-reset-setup" onclick="sc_backToConfig()">← Retour config</button>
       </div>
 
@@ -1657,9 +1657,9 @@ function renderDaysList() {
         </div>
         <div class="field" style="margin:0;">
           <label>Train de pneus de départ</label>
-          <select onchange="sc_setDayField(${idx},'pneuTrain',this.value)">
+          <select onchange="sc_setDayField(${idx},'pneuTrainIdx',this.value)">
             <option value="">— Choisir —</option>
-            ${buildPneuOptionsHTML(d.pneuTrain)}
+            ${buildPneuOptionsHTML(d.pneuTrainIdx)}
           </select>
         </div>
         <div class="field" style="margin:0;">
@@ -1684,15 +1684,308 @@ function sc_validateDays() {
     return;
   }
   for (const d of superCalc.days) {
-    if (!d.surface || !d.pneuTrain || d.pneuUsureInitiale === null) {
+    if (!d.surface || d.pneuTrainIdx === '' || d.pneuTrainIdx === undefined || d.pneuUsureInitiale === null) {
       errEl.textContent = `Le jour ${d.numero} est incomplet (surface, train de pneus et usure initiale requis).`;
       errEl.style.display = 'block';
       return;
     }
   }
   errEl.style.display = 'none';
-  console.log('Jours validés :', JSON.parse(JSON.stringify(superCalc.days)));
-  alert('Jours validés ! (Étape 4 à venir : timeline assistances / spéciales)');
+  initTimeline();
+}
+
+/* ─── ÉTAPE 4 : TIMELINE ASSISTANCES / SPÉCIALES ─── */
+
+const ASSISTANCE_ACTIONS = {
+  reviser:        { label: 'Réviser la voiture',              cost: 10 },
+  retailler:      { label: 'Retailler les pneus',             cost: 10 },
+  cameras:        { label: 'Visionner les caméras',           cost: 10 },
+  conseils:       { label: 'Conseils des ingénieurs',         cost: 10 },
+  notes:          { label: 'Modifier les notes (ouvreurs)',   cost: 20 === 20 ? 10 : 10 }, // 10 min de base
+  reglages:       { label: 'Améliorer les réglages',          cost: 20 },
+  'changer-pneus':{ label: 'Changer les pneus',               cost: 20 }
+};
+const ASSISTANCE_BUDGET = 20; // minutes, fixe quel que soit le sponsor
+
+function initTimeline() {
+  superCalc.timelineActiveDay = 0;
+  sc_recompute();
+  renderTimeline();
+}
+
+function sc_recompute() {
+  const cfg = superCalc.config;
+  const bimasActive = cfg.sponsors.includes('bimas');
+  const aceroActive = cfg.sponsors.includes('acero');
+  const assistProActive = cfg.sponsors.includes('assistance-pro');
+
+  let carUsure = cfg.usureInitiale;
+  let xpVoiture = cfg.xpVoiture;
+  let xpAsphalte = cfg.xpAsphalte;
+  let xpTerreNeige = cfg.xpTerreNeige;
+  let confiance = cfg.confiance;
+
+  superCalc.days.forEach(day => {
+    let activeTireIdx = day.pneuTrainIdx;
+    let tireUsure = day.pneuUsureInitiale;
+    day.computedItems = [];
+
+    day.items.forEach(item => {
+      if (item.type === 'assistance') {
+        let durationUsed = 0;
+        const effects = [];
+        (item.actions || []).forEach(actionKey => {
+          const def = ASSISTANCE_ACTIONS[actionKey];
+          if (!def) return;
+          const cost = assistProActive ? def.cost / 2 : def.cost;
+          durationUsed += cost;
+
+          if (actionKey === 'reviser') {
+            carUsure = Math.max(0, carUsure - 1);
+            effects.push(`${def.label} — -1% usure voiture`);
+          } else if (actionKey === 'retailler') {
+            tireUsure = Math.max(0, tireUsure - 2);
+            effects.push(`${def.label} — -2% usure pneu`);
+          } else if (actionKey === 'cameras') {
+            const gain = aceroActive ? 2 : 1;
+            if (day.surface === 'Asphalte') xpAsphalte += gain; else xpTerreNeige += gain;
+            effects.push(`${def.label} — +${gain} xp pilote (${day.surface || '?'})`);
+          } else if (actionKey === 'conseils') {
+            const gain = aceroActive ? 2 : 1;
+            xpVoiture += gain;
+            effects.push(`${def.label} — +${gain} xp voiture`);
+          } else if (actionKey === 'notes') {
+            confiance = Math.min(100, confiance + 1);
+            effects.push(`${def.label} — +1 confiance`);
+          } else if (actionKey === 'reglages') {
+            effects.push(`${def.label} — meilleur chrono`);
+          } else if (actionKey === 'changer-pneus') {
+            if (item.newTireIdx !== null && item.newTireIdx !== undefined && item.newTireIdx !== '') {
+              activeTireIdx = item.newTireIdx;
+              tireUsure = 0;
+              effects.push(`${def.label} — nouveau train : ${tireData[activeTireIdx]?.pneu || '?'}`);
+            }
+          }
+        });
+        day.computedItems.push({
+          type: 'assistance', durationUsed, effects,
+          carUsureAfter: carUsure, tireUsureAfter: tireUsure, activeTireIdxAfter: activeTireIdx
+        });
+      } else if (item.type === 'speciale') {
+        const tireRow = tireData[activeTireIdx];
+        const tireCoeff = tireRow ? tireRow.data[item.attack] : null;
+        const carCoeff = carDegradation.data ? carDegradation.data[item.attack] : null;
+        const tireAvailable = tireCoeff !== null && tireCoeff !== undefined;
+        const carAvailable = carCoeff !== null && carCoeff !== undefined;
+        const mult = bimasActive ? 0.5 : 1;
+        const tireDelta = tireAvailable ? tireCoeff * item.km * mult : null;
+        const carDelta = carAvailable ? carCoeff * item.km * mult : null;
+
+        if (tireAvailable) tireUsure = Math.min(100, tireUsure + tireDelta);
+        if (carAvailable) carUsure = Math.min(100, carUsure + carDelta);
+
+        day.computedItems.push({
+          type: 'speciale', km: item.km, attack: item.attack,
+          tireAvailable, tireDelta, tireUsureAfter: tireUsure,
+          carAvailable, carDelta, carUsureAfter: carUsure,
+          tireName: tireRow ? tireRow.pneu : '?'
+        });
+      }
+    });
+
+    day.finalTireUsure = tireUsure;
+    day.finalActiveTireIdx = activeTireIdx;
+  });
+
+  superCalc.result = { carUsure, xpVoiture, xpAsphalte, xpTerreNeige, confiance };
+}
+
+function renderTimeline() {
+  const container = document.getElementById('supercalc-content');
+  if (!container) return;
+
+  let html = `
+    <div class="section-label fadein">Timeline du rallye</div>
+    <div style="display:flex;gap:.8rem;margin-bottom:1.2rem;">
+      <button class="btn-reset-setup" onclick="sc_backToDaysFromTimeline()">← Retour jours</button>
+      <button class="btn-calc-setup" onclick="sc_showFinalResult()">🏁 Voir le résultat final</button>
+    </div>
+  `;
+
+  superCalc.days.forEach((day, dIdx) => {
+    const meteoObj = METEO_DATA.find(m => m.id === day.meteo);
+    html += `
+    <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:.7rem 1rem;margin:1.4rem 0 .8rem;display:flex;align-items:center;gap:.7rem;">
+      <span style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.1em;">Jour ${day.numero}</span>
+      <span style="color:var(--muted);font-size:.8rem;">${day.surface}${meteoObj ? ' · ' + meteoObj.label : ''} · pneu de départ : ${tireData[day.pneuTrainIdx]?.pneu || '?'} (${day.pneuUsureInitiale}%)</span>
+    </div>`;
+
+    day.computedItems.forEach((ci, iIdx) => {
+      if (ci.type === 'assistance') {
+        html += `
+        <div class="setup-row-card" style="margin-bottom:.8rem;">
+          <div class="setup-row-header">
+            <span class="setup-row-num">🔧 Assistance (${ci.durationUsed} / ${ASSISTANCE_BUDGET} min)</span>
+            <button onclick="sc_deleteItem(${dIdx},${iIdx})" style="margin-left:auto;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:6px;color:var(--red);font-size:.7rem;padding:.2rem .6rem;cursor:pointer;">🗑</button>
+          </div>
+          <ul style="margin:0 0 .6rem 1.2rem;font-size:.82rem;color:var(--text);">
+            ${ci.effects.map(e => `<li>${e}</li>`).join('')}
+          </ul>
+          <div style="font-size:.75rem;color:var(--muted);">Usure voiture après : <strong style="color:var(--text)">${ci.carUsureAfter.toFixed(2)}%</strong> · Usure pneu après : <strong style="color:var(--text)">${ci.tireUsureAfter.toFixed(2)}%</strong></div>
+        </div>`;
+      } else {
+        html += `
+        <div class="setup-row-card" style="margin-bottom:.8rem;">
+          <div class="setup-row-header">
+            <span class="setup-row-num">🏁 Spéciale — ${ci.km} km — ${ATTACK_LABELS[ci.attack]}</span>
+            <button onclick="sc_deleteItem(${dIdx},${iIdx})" style="margin-left:auto;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:6px;color:var(--red);font-size:.7rem;padding:.2rem .6rem;cursor:pointer;">🗑</button>
+          </div>
+          <div style="font-size:.82rem;color:var(--text);">
+            ${ci.tireAvailable
+              ? `Usure pneu (${ci.tireName}) : +${ci.tireDelta.toFixed(2)}% → <strong>${ci.tireUsureAfter.toFixed(2)}%</strong>`
+              : `<span style="color:var(--red);">⚠️ Donnée de dégradation pneu non disponible pour cette attaque</span>`}
+            <br>
+            ${ci.carAvailable
+              ? `Usure voiture : +${ci.carDelta.toFixed(2)}% → <strong>${ci.carUsureAfter.toFixed(2)}%</strong>`
+              : `<span style="color:var(--red);">⚠️ Donnée de dégradation voiture non disponible pour cette attaque</span>`}
+          </div>
+        </div>`;
+      }
+    });
+
+    html += `
+    <div class="calc-card" style="margin-bottom:1.4rem;">
+      <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+        <button class="btn-calc-setup" onclick="sc_openAssistanceForm(${dIdx})">+ Assistance</button>
+        <button class="btn-calc-setup" onclick="sc_openSpecialeForm(${dIdx})">+ Spéciale</button>
+      </div>
+      <div id="sc-form-day-${dIdx}" style="margin-top:1rem;"></div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function sc_backToDaysFromTimeline() {
+  renderSuperCalcDays();
+}
+
+function sc_deleteItem(dayIdx, itemIdx) {
+  superCalc.days[dayIdx].items.splice(itemIdx, 1);
+  sc_recompute();
+  renderTimeline();
+}
+
+/* ─── FORMULAIRE ASSISTANCE ─── */
+function sc_openAssistanceForm(dayIdx) {
+  const zone = document.getElementById('sc-form-day-' + dayIdx);
+  const assistProActive = superCalc.config.sponsors.includes('assistance-pro');
+  zone.innerHTML = `
+    <div style="border:1px solid rgba(59,158,245,.3);border-radius:10px;padding:1rem;background:rgba(59,158,245,.05);">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;margin-bottom:.6rem;">Assistance — budget ${ASSISTANCE_BUDGET} min</div>
+      <div id="sc-assist-checks-${dayIdx}" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.6rem;">
+        ${Object.entries(ASSISTANCE_ACTIONS).map(([key, def]) => {
+          const cost = assistProActive ? def.cost / 2 : def.cost;
+          return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;">
+            <input type="checkbox" onchange="sc_toggleAssistAction(${dayIdx},'${key}',this.checked)" />
+            ${def.label} <span style="color:var(--muted);">(${cost} min)</span>
+            ${key === 'changer-pneus' ? `<select id="sc-newtire-${dayIdx}" style="margin-left:.5rem;"><option value="">— nouveau train —</option>${tireData.map((t,i) => `<option value="${i}">${t.pneu} — ${t.surface}/${t.meteo}/${t.temp}</option>`).join('')}</select>` : ''}
+          </label>`;
+        }).join('')}
+      </div>
+      <div id="sc-assist-total-${dayIdx}" style="font-size:.8rem;color:var(--muted);margin-bottom:.7rem;">0 / ${ASSISTANCE_BUDGET} min utilisées</div>
+      <div style="display:flex;gap:.6rem;">
+        <button class="btn-calc-setup" onclick="sc_confirmAssistance(${dayIdx})">Valider l'assistance</button>
+        <button class="btn-reset-setup" onclick="document.getElementById('sc-form-day-${dayIdx}').innerHTML=''">Annuler</button>
+      </div>
+    </div>
+  `;
+  superCalc._pendingAssist = superCalc._pendingAssist || {};
+  superCalc._pendingAssist[dayIdx] = [];
+}
+
+function sc_toggleAssistAction(dayIdx, key, checked) {
+  const list = superCalc._pendingAssist[dayIdx];
+  const assistProActive = superCalc.config.sponsors.includes('assistance-pro');
+  if (checked) list.push(key); else superCalc._pendingAssist[dayIdx] = list.filter(k => k !== key);
+  const total = superCalc._pendingAssist[dayIdx].reduce((sum, k) => {
+    const cost = ASSISTANCE_ACTIONS[k].cost;
+    return sum + (assistProActive ? cost / 2 : cost);
+  }, 0);
+  const el = document.getElementById('sc-assist-total-' + dayIdx);
+  el.textContent = `${total} / ${ASSISTANCE_BUDGET} min utilisées`;
+  el.style.color = total > ASSISTANCE_BUDGET ? '#e74c3c' : 'var(--muted)';
+}
+
+function sc_confirmAssistance(dayIdx) {
+  const actions = superCalc._pendingAssist[dayIdx] || [];
+  const assistProActive = superCalc.config.sponsors.includes('assistance-pro');
+  const total = actions.reduce((sum, k) => {
+    const cost = ASSISTANCE_ACTIONS[k].cost;
+    return sum + (assistProActive ? cost / 2 : cost);
+  }, 0);
+  if (total > ASSISTANCE_BUDGET) { alert('Le budget de 20 minutes est dépassé.'); return; }
+  if (actions.length === 0) { alert('Sélectionnez au moins une action.'); return; }
+
+  let newTireIdx = null;
+  if (actions.includes('changer-pneus')) {
+    const sel = document.getElementById('sc-newtire-' + dayIdx);
+    if (!sel || sel.value === '') { alert('Sélectionnez le nouveau train de pneus.'); return; }
+    newTireIdx = parseInt(sel.value);
+  }
+
+  superCalc.days[dayIdx].items.push({ type: 'assistance', actions, newTireIdx });
+  sc_recompute();
+  renderTimeline();
+}
+
+/* ─── FORMULAIRE SPÉCIALE ─── */
+function sc_openSpecialeForm(dayIdx) {
+  const zone = document.getElementById('sc-form-day-' + dayIdx);
+  zone.innerHTML = `
+    <div style="border:1px solid rgba(232,82,42,.3);border-radius:10px;padding:1rem;background:rgba(232,82,42,.05);">
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;margin-bottom:.6rem;">Nouvelle spéciale</div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem;">
+        <div class="field" style="margin:0;">
+          <label>Kilomètres</label>
+          <input type="number" id="sc-es-km-${dayIdx}" min="0" step="0.01" style="width:120px;" />
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Attaque</label>
+          <select id="sc-es-attack-${dayIdx}">
+            <option value="">— Choisir —</option>
+            ${ATTACKS.map(a => `<option value="${a}">${ATTACK_LABELS[a]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:.6rem;">
+        <button class="btn-calc-setup" onclick="sc_confirmSpeciale(${dayIdx})">Ajouter la spéciale</button>
+        <button class="btn-reset-setup" onclick="document.getElementById('sc-form-day-${dayIdx}').innerHTML=''">Annuler</button>
+      </div>
+    </div>
+  `;
+}
+
+function sc_confirmSpeciale(dayIdx) {
+  const km = parseFloat(document.getElementById('sc-es-km-' + dayIdx).value);
+  const attack = document.getElementById('sc-es-attack-' + dayIdx).value;
+  if (isNaN(km) || km <= 0 || !attack) { alert('Renseignez les km et l\'attaque.'); return; }
+  superCalc.days[dayIdx].items.push({ type: 'speciale', km, attack });
+  sc_recompute();
+  renderTimeline();
+}
+
+/* ─── RÉSULTAT FINAL (aperçu, sera enrichi à l'étape 5) ─── */
+function sc_showFinalResult() {
+  const r = superCalc.result;
+  alert(
+    `Résultat actuel :\n` +
+    `Usure voiture : ${r.carUsure.toFixed(2)}%\n` +
+    `XP voiture : ${r.xpVoiture}\n` +
+    `XP asphalte : ${r.xpAsphalte}\n` +
+    `XP terre/neige : ${r.xpTerreNeige}\n` +
+    `Confiance : ${r.confiance}`
+  );
 }
   
 function getBrand(pneu) {
