@@ -1414,9 +1414,20 @@ let superCalc = {
     confiance: null,
     sponsors: []   // max 2 ids, ex: ['acero','bimas']
   },
+  trains: [],
   started: false,  // passe à true après "Démarrer le rallye"
   days: []         // rempli aux étapes suivantes
 };
+
+function sc_createTrain(tireIdx, usureInitiale, label) {
+  const id = 't' + (superCalc.trains.length + 1);
+  const train = { id, tireIdx, label: label || `Train ${superCalc.trains.length + 1}`, usureActuelle: usureInitiale };
+  superCalc.trains.push(train);
+  return train;
+}
+function sc_getTrain(id) {
+  return superCalc.trains.find(t => t.id === id);
+}
 
 function toolSuperCalcHTML() {
   return `
@@ -1550,7 +1561,7 @@ function sc_startRally() {
   }
   errEl.style.display = 'none';
   superCalc.started = true;
-  renderSuperCalcDays();
+  renderSuperCalcTrains();
 }
 
 /* ─── ÉTAPE 3 : JOURS DU RALLYE ─── */
@@ -1576,8 +1587,7 @@ function sc_addDay() {
     numero: superCalc.days.length + 1,
     surface: '',
     meteo: '',
-    pneuTrainIdx: '',
-    pneuUsureInitiale: null,
+    trainId: '',
     items: []   // rempli à l'étape 4 (assistances / spéciales)
   });
   renderDaysList();
@@ -1598,6 +1608,78 @@ function sc_setDayNumField(idx, key, val) {
   superCalc.days[idx][key] = val === '' ? null : (isNaN(num) ? null : num);
 }
 
+function renderSuperCalcTrains() {
+  const container = document.getElementById('supercalc-content');
+  if (!container) return;
+
+  ensureTireDataLoaded(() => {
+    container.innerHTML = `
+      <div class="section-label fadein">Gestion des trains de pneus</div>
+      <div style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+        Créez ici les trains de pneus physiques dont vous disposez au départ du rallye.
+        Leur usure sera ensuite suivie automatiquement.
+      </div>
+
+      <div class="calc-card">
+        <div class="calc-grid" style="grid-template-columns:2fr 1fr 1fr;gap:.9rem;">
+          <div class="field" style="margin:0;">
+            <label>Modèle de pneu</label>
+            <select id="sc-new-train-tire">
+              <option value="">— Choisir —</option>
+              ${buildPneuOptionsHTML('')}
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Usure de départ (%)</label>
+            <input type="number" min="0" max="100" step="0.1" id="sc-new-train-usure" value="0" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Nom (optionnel)</label>
+            <input type="text" id="sc-new-train-label" placeholder="ex: Train A" />
+          </div>
+        </div>
+        <button class="btn-calc-setup" style="margin-top:.8rem;" onclick="sc_addTrainFromForm()">+ Ajouter ce train à la flotte</button>
+      </div>
+
+      <div id="sc-trains-list" style="display:flex;flex-direction:column;gap:.8rem;margin:1.2rem 0;"></div>
+
+      <div style="display:flex;gap:.8rem;">
+        <button class="btn-reset-setup" onclick="sc_backToConfig()">← Retour config</button>
+        <button class="btn-calc-setup" style="flex:1;" onclick="renderSuperCalcDays()">Continuer vers les jours →</button>
+      </div>
+    `;
+    renderTrainsList();
+  });
+}
+
+function sc_addTrainFromForm() {
+  const tireIdx = document.getElementById('sc-new-train-tire').value;
+  const usure = parseFloat(document.getElementById('sc-new-train-usure').value) || 0;
+  const label = document.getElementById('sc-new-train-label').value;
+  if (tireIdx === '') return; // pas de modèle choisi, on ne fait rien
+  sc_createTrain(parseInt(tireIdx), usure, label);
+  renderSuperCalcTrains(); // on ré-affiche tout l'écran pour vider le formulaire + rafraîchir la liste
+}
+
+function renderTrainsList() {
+  const list = document.getElementById('sc-trains-list');
+  if (!list) return;
+  if (superCalc.trains.length === 0) {
+    list.innerHTML = `<div class="no-data-msg">Aucun train créé pour l'instant.</div>`;
+    return;
+  }
+  list.innerHTML = superCalc.trains.map(t => `
+    <div class="calc-card" style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span class="tag">${t.label}</span>
+        <span style="margin-left:.6rem;color:var(--muted);font-size:.85rem;">
+          ${tireData[t.tireIdx]?.pneu || '?'} — usure actuelle : <strong style="color:var(--text)">${t.usureActuelle.toFixed(1)}%</strong>
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+  
 function renderSuperCalcDays() {
   const container = document.getElementById('supercalc-content');
   if (!container) return;
@@ -1613,7 +1695,7 @@ function renderSuperCalcDays() {
 
       <div style="display:flex;gap:.8rem;margin-bottom:1.6rem;">
         <button class="btn-calc-setup" onclick="sc_addDay()" ${superCalc.days.length >= 4 ? 'disabled' : ''} style="${superCalc.days.length >= 4 ? 'opacity:.4;cursor:not-allowed;' : ''}">+ Ajouter un jour</button>
-        <button class="btn-reset-setup" onclick="sc_backToConfig()">← Retour config</button>
+        <button class="btn-reset-setup" onclick="renderSuperCalcTrains()">← Retour flotte</button>
       </div>
 
       <div id="sc-days-error" style="color:var(--red);font-size:.82rem;margin-bottom:1rem;display:none;"></div>
@@ -1656,17 +1738,16 @@ function renderDaysList() {
           </select>
         </div>
         <div class="field" style="margin:0;">
-          <label>Train de pneus de départ</label>
-          <select onchange="sc_setDayField(${idx},'pneuTrainIdx',this.value)">
-            <option value="">— Choisir —</option>
-            ${buildPneuOptionsHTML(d.pneuTrainIdx)}
-          </select>
-        </div>
-        <div class="field" style="margin:0;">
-          <label>Usure initiale du train (%)</label>
-          <input type="number" min="0" max="100" step="0.1" value="${d.pneuUsureInitiale ?? ''}"
-            oninput="sc_setDayNumField(${idx},'pneuUsureInitiale',this.value)" />
-        </div>
+  <label>Train de pneus de départ</label>
+  <select onchange="sc_setDayField(${idx},'trainId',this.value)">
+    <option value="">— Choisir —</option>
+    ${superCalc.trains.map(t =>
+      `<option value="${t.id}" ${d.trainId === t.id ? 'selected' : ''}>
+         ${t.label} — ${tireData[t.tireIdx]?.pneu} (usure actuelle : ${t.usureActuelle.toFixed(1)}%)
+       </option>`
+    ).join('')}
+  </select>
+</div>
       </div>
     </div>
   `).join('');
@@ -1684,7 +1765,7 @@ function sc_validateDays() {
     return;
   }
   for (const d of superCalc.days) {
-    if (!d.surface || d.pneuTrainIdx === '' || d.pneuTrainIdx === undefined || d.pneuUsureInitiale === null) {
+    if (!d.surface || d.trainId === '' || d.trainId === undefined) {
       errEl.textContent = `Le jour ${d.numero} est incomplet (surface, train de pneus et usure initiale requis).`;
       errEl.style.display = 'block';
       return;
@@ -1726,8 +1807,7 @@ function sc_recompute() {
   let confiance = cfg.confiance;
 
   superCalc.days.forEach(day => {
-    let activeTireIdx = day.pneuTrainIdx;
-    let tireUsure = day.pneuUsureInitiale;
+    let activeTrain = sc_getTrain(day.trainId);
     day.computedItems = [];
 
     day.items.forEach(item => {
@@ -1744,8 +1824,8 @@ function sc_recompute() {
             carUsure = Math.max(0, carUsure - 1);
             effects.push(`${def.label} — -1% usure voiture`);
           } else if (actionKey === 'retailler') {
-            tireUsure = Math.max(0, tireUsure - 2);
-            effects.push(`${def.label} — -2% usure pneu`);
+  activeTrain.usureActuelle = Math.max(0, activeTrain.usureActuelle - 2);
+  effects.push(`${def.label} — -2% usure pneu`);
           } else if (actionKey === 'cameras') {
             const gain = aceroActive ? 2 : 1;
             if (day.surface === 'Asphalte') xpAsphalte += gain; else xpTerreNeige += gain;
@@ -1760,41 +1840,40 @@ function sc_recompute() {
           } else if (actionKey === 'reglages') {
             effects.push(`${def.label} — meilleur chrono`);
           } else if (actionKey === 'changer-pneus') {
-            if (item.newTireIdx !== null && item.newTireIdx !== undefined && item.newTireIdx !== '') {
-              activeTireIdx = item.newTireIdx;
-              tireUsure = 0;
-              effects.push(`${def.label} — nouveau train : ${tireData[activeTireIdx]?.pneu || '?'}`);
-            }
-          }
+  if (item.newTrainId) {
+    activeTrain = sc_getTrain(item.newTrainId);
+    effects.push(`${def.label} — nouveau train : ${activeTrain.label} (${tireData[activeTrain.tireIdx]?.pneu || '?'})`);
+  }
+}
         });
         day.computedItems.push({
-          type: 'assistance', durationUsed, effects,
-          carUsureAfter: carUsure, tireUsureAfter: tireUsure, activeTireIdxAfter: activeTireIdx
-        });
+  type: 'assistance', durationUsed, effects,
+  carUsureAfter: carUsure, tireUsureAfter: activeTrain.usureActuelle, activeTrainIdAfter: activeTrain.id
+});
       } else if (item.type === 'speciale') {
-        const tireRow = tireData[activeTireIdx];
-        const tireCoeff = tireRow ? tireRow.data[item.attack] : null;
-        const carCoeff = carDegradation.data ? carDegradation.data[item.attack] : null;
-        const tireAvailable = tireCoeff !== null && tireCoeff !== undefined;
-        const carAvailable = carCoeff !== null && carCoeff !== undefined;
-        const mult = bimasActive ? 0.5 : 1;
-        const tireDelta = tireAvailable ? tireCoeff * item.km * mult : null;
-        const carDelta = carAvailable ? carCoeff * item.km * mult : null;
+  const tireRow = tireData[activeTrain.tireIdx];
+  const tireCoeff = tireRow ? tireRow.data[item.attack] : null;
+  const carCoeff = carDegradation.data ? carDegradation.data[item.attack] : null;
+  const tireAvailable = tireCoeff !== null && tireCoeff !== undefined;
+  const carAvailable = carCoeff !== null && carCoeff !== undefined;
+  const mult = bimasActive ? 0.5 : 1;
+  const tireDelta = tireAvailable ? tireCoeff * item.km * mult : null;
+  const carDelta = carAvailable ? carCoeff * item.km * mult : null;
 
-        if (tireAvailable) tireUsure = Math.min(100, tireUsure + tireDelta);
-        if (carAvailable) carUsure = Math.min(100, carUsure + carDelta);
+  if (tireAvailable) activeTrain.usureActuelle = Math.min(100, activeTrain.usureActuelle + tireDelta);
+  if (carAvailable) carUsure = Math.min(100, carUsure + carDelta);
 
-        day.computedItems.push({
-          type: 'speciale', km: item.km, attack: item.attack,
-          tireAvailable, tireDelta, tireUsureAfter: tireUsure,
-          carAvailable, carDelta, carUsureAfter: carUsure,
-          tireName: tireRow ? tireRow.pneu : '?'
-        });
-      }
+  day.computedItems.push({
+    type: 'speciale', km: item.km, attack: item.attack,
+    tireAvailable, tireDelta, tireUsureAfter: activeTrain.usureActuelle,
+    carAvailable, carDelta, carUsureAfter: carUsure,
+    tireName: tireRow ? tireRow.pneu : '?'
+  });
+}
     });
 
-    day.finalTireUsure = tireUsure;
-    day.finalActiveTireIdx = activeTireIdx;
+    day.finalTireUsure = activeTrain.usureActuelle;
+    day.finalActiveTrainId = activeTrain.id;
   });
 
   superCalc.result = { carUsure, xpVoiture, xpAsphalte, xpTerreNeige, confiance };
@@ -1814,10 +1893,11 @@ function renderTimeline() {
 
   superCalc.days.forEach((day, dIdx) => {
     const meteoObj = METEO_DATA.find(m => m.id === day.meteo);
+    const dayTrain = sc_getTrain(day.trainId);
     html += `
     <div style="background:#111;border:1px solid var(--border);border-radius:12px;padding:.7rem 1rem;margin:1.4rem 0 .8rem;display:flex;align-items:center;gap:.7rem;">
       <span style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.1em;">Jour ${day.numero}</span>
-      <span style="color:var(--muted);font-size:.8rem;">${day.surface}${meteoObj ? ' · ' + meteoObj.label : ''} · pneu de départ : ${tireData[day.pneuTrainIdx]?.pneu || '?'} (${day.pneuUsureInitiale}%)</span>
+      <span style="color:var(--muted);font-size:.8rem;"> · pneu de départ : ${dayTrain ? `${dayTrain.label} — ${tireData[dayTrain.tireIdx]?.pneu || '?'} (${dayTrain.usureActuelle.toFixed(1)}%)` : '?'}</span>
     </div>`;
 
     day.computedItems.forEach((ci, iIdx) => {
@@ -1889,7 +1969,14 @@ function sc_openAssistanceForm(dayIdx) {
           return `<label style="display:flex;align-items:center;gap:.6rem;font-size:.85rem;">
             <input type="checkbox" onchange="sc_toggleAssistAction(${dayIdx},'${key}',this.checked)" />
             ${def.label} <span style="color:var(--muted);">(${cost} min)</span>
-            ${key === 'changer-pneus' ? `<select id="sc-newtire-${dayIdx}" style="margin-left:.5rem;"><option value="">— nouveau train —</option>${tireData.map((t,i) => `<option value="${i}">${t.pneu} — ${t.surface}/${t.meteo}/${t.temp}</option>`).join('')}</select>` : ''}
+            ${key === 'changer-pneus' ? `
+  <select id="sc-newtrain-${dayIdx}" style="margin-left:.5rem;" onchange="sc_onNewTrainChange(${dayIdx})">
+    <option value="">— choisir un train —</option>
+    ${superCalc.trains.map(t => `<option value="${t.id}">${t.label} (${t.usureActuelle.toFixed(1)}%)</option>`).join('')}
+    <option value="__new__">+ Créer un nouveau train…</option>
+  </select>
+  <div id="sc-newtrain-form-${dayIdx}" style="margin-top:.4rem;"></div>
+` : ''}
           </label>`;
         }).join('')}
       </div>
@@ -1917,6 +2004,24 @@ function sc_toggleAssistAction(dayIdx, key, checked) {
   el.style.color = total > ASSISTANCE_BUDGET ? '#e74c3c' : 'var(--muted)';
 }
 
+function sc_onNewTrainChange(dayIdx) {
+  const sel = document.getElementById('sc-newtrain-' + dayIdx);
+  const formZone = document.getElementById('sc-newtrain-form-' + dayIdx);
+  if (sel.value === '__new__') {
+    formZone.innerHTML = `
+      <div style="display:flex;gap:.5rem;align-items:center;font-size:.8rem;">
+        <select id="sc-newtrain-tire-${dayIdx}">
+          <option value="">— modèle —</option>
+          ${buildPneuOptionsHTML('')}
+        </select>
+        <input type="number" id="sc-newtrain-usure-${dayIdx}" placeholder="usure %" min="0" max="100" step="0.1" value="0" style="width:70px;" />
+      </div>
+    `;
+  } else {
+    formZone.innerHTML = '';
+  }
+}
+
 function sc_confirmAssistance(dayIdx) {
   const actions = superCalc._pendingAssist[dayIdx] || [];
   const assistProActive = superCalc.config.sponsors.includes('assistance-pro');
@@ -1927,14 +2032,23 @@ function sc_confirmAssistance(dayIdx) {
   if (total > ASSISTANCE_BUDGET) { alert('Le budget de 20 minutes est dépassé.'); return; }
   if (actions.length === 0) { alert('Sélectionnez au moins une action.'); return; }
 
-  let newTireIdx = null;
-  if (actions.includes('changer-pneus')) {
-    const sel = document.getElementById('sc-newtire-' + dayIdx);
-    if (!sel || sel.value === '') { alert('Sélectionnez le nouveau train de pneus.'); return; }
-    newTireIdx = parseInt(sel.value);
-  }
+  let newTrainId = null;
+if (actions.includes('changer-pneus')) {
+  const sel = document.getElementById('sc-newtrain-' + dayIdx);
+  if (!sel || sel.value === '') { alert('Sélectionnez le nouveau train de pneus.'); return; }
 
-  superCalc.days[dayIdx].items.push({ type: 'assistance', actions, newTireIdx });
+  if (sel.value === '__new__') {
+    const tireIdx = document.getElementById('sc-newtrain-tire-' + dayIdx).value;
+    const usure = parseFloat(document.getElementById('sc-newtrain-usure-' + dayIdx).value) || 0;
+    if (tireIdx === '') { alert('Choisissez un modèle pour le nouveau train.'); return; }
+    const train = sc_createTrain(parseInt(tireIdx), usure);
+    newTrainId = train.id;
+  } else {
+    newTrainId = sel.value;
+  }
+}
+
+superCalc.days[dayIdx].items.push({ type: 'assistance', actions, newTrainId });
   sc_recompute();
   renderTimeline();
 }
@@ -1990,19 +2104,23 @@ function sc_showFinalResult() {
 
   const sponsorLabels = c.sponsors.map(id => SPONSORS_LIST.find(s => s.id === id)?.label).filter(Boolean);
 
-  // Récap pneus par jour (usure finale de chaque train utilisé sur chaque jour)
-  const tireRecapHTML = superCalc.days.map(day => {
-    const tireRow = tireData[day.finalActiveTireIdx];
-    const usureCol = day.finalTireUsure <= 20 ? '#2ecc71' : day.finalTireUsure <= 50 ? '#f1c40f' : day.finalTireUsure <= 80 ? '#e67e22' : '#e74c3c';
-    return `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);">
-      <div>
-        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;">Jour ${day.numero} <span style="color:var(--muted);font-weight:400;font-size:.78rem;">— ${day.surface}</span></div>
-        <div style="font-size:.75rem;color:var(--muted);">${tireRow ? tireRow.pneu + ' — ' + tireRow.surface + '/' + tireRow.meteo : '?'}</div>
-      </div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:1.3rem;font-weight:700;color:${usureCol};">${day.finalTireUsure.toFixed(2)}%</div>
-    </div>`;
-  }).join('');
+  // Récap par train (usure finale + jours où il a été utilisé)
+const tireRecapHTML = superCalc.trains.map(train => {
+  const tireRow = tireData[train.tireIdx];
+  const usureCol = train.usureActuelle <= 20 ? '#2ecc71' : train.usureActuelle <= 50 ? '#f1c40f' : train.usureActuelle <= 80 ? '#e67e22' : '#e74c3c';
+  // jours où ce train a servi comme train de départ, ou comme train de remplacement en assistance
+  const joursUtilises = superCalc.days
+    .filter(d => d.trainId === train.id || d.items.some(it => it.type === 'assistance' && it.newTrainId === train.id))
+    .map(d => d.numero);
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);">
+    <div>
+      <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;">${train.label} <span style="color:var(--muted);font-weight:400;font-size:.78rem;">— ${joursUtilises.length ? 'jours ' + joursUtilises.join(', ') : 'non utilisé'}</span></div>
+      <div style="font-size:.75rem;color:var(--muted);">${tireRow ? tireRow.pneu + ' — ' + tireRow.surface + '/' + tireRow.meteo : '?'}</div>
+    </div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:1.3rem;font-weight:700;color:${usureCol};">${train.usureActuelle.toFixed(2)}%</div>
+  </div>`;
+}).join('');
 
   const usureVoitCol = r.carUsure <= 20 ? '#2ecc71' : r.carUsure <= 50 ? '#f1c40f' : r.carUsure <= 80 ? '#e67e22' : '#e74c3c';
 
@@ -2063,6 +2181,7 @@ function sc_resetAll() {
       usureInitiale: null, xpVoiture: null, xpAsphalte: null,
       xpTerreNeige: null, confiance: null, sponsors: []
     },
+    trains: [],
     started: false,
     days: []
   };
