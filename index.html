@@ -855,6 +855,7 @@
 /* ─── CONFIG ─── */
 const PASSWORD = 'rallye2024';
 const CSV_PATH = '/data/degradation_pneus.csv';
+const CAR_CSV_PATH = '/data/degradation_voiture.csv';
 const TRACKS_XLSX_PATH = 'TRACKS.xlsx';
 
 const BRANDS = ['Dmack','Hankook','Kumho','Michelin','Pirelli','Toyo','Yokohama'];
@@ -890,6 +891,9 @@ const GAMES = {
       ]},
       { title: 'Météo', items: [
         { id: 'choix-pneus', icon: '🌤️', label: 'Choix Pneus' }
+      ]},
+      { title: 'Rallye', items: [
+        { id: 'supercalc', icon: '🧮', label: 'Supercalculateur' }
       ]},
       { title: 'Bientôt disponible', items: [
         { id: 'strategy', icon: '📊', label: 'Stratégie',       soon: true },
@@ -963,6 +967,7 @@ async function loadTracksData() {
 
 // Lance le chargement dès l'ouverture de la page (en arrière-plan)
 loadTracksData();
+loadCarDegradationData();
   
 // Exécute cb() dès que tracksData est chargé (immédiatement si déjà chargé, sinon on patiente)
 function waitForTracksData(cb) {
@@ -1045,6 +1050,10 @@ function renderTool() {
     topbarTool.textContent = 'Choix Pneus';
     content.innerHTML = toolChoixPneusHTML();
     initChoixPneus();
+  } else if (currentTool === 'supercalc') {
+    topbarTool.textContent = 'Supercalculateur';
+    content.innerHTML = toolSuperCalcHTML();
+    initSuperCalc();
   } else if (currentTool === 'gpro-setup') {
     topbarTool.textContent = "Calculateur d'installation";
     content.innerHTML = toolGproSetupHTML();
@@ -1320,6 +1329,372 @@ function parseVal(v) {
   return parseFloat(v.trim().replace(',','.')) || null;
 }
 
+function parseVal(v) {
+  if (!v || v.trim() === '') return null;
+  return parseFloat(v.trim().replace(',','.')) || null;
+}
+
+// ─── DÉGRADATION VOITURE (supercalculateur) ───
+let carDegradation = {
+  data: null,     // { 'Attaque Poussee': 0.12, 'Attaque Normale': 0.08, ... }
+  loaded: false,
+  loading: false,
+  error: null
+};
+
+async function loadCarDegradationData() {
+  if (carDegradation.loaded || carDegradation.loading) return;
+  carDegradation.loading = true;
+  try {
+    const resp = await fetch(CAR_CSV_PATH);
+    if (!resp.ok) throw new Error('CSV introuvable');
+    const text = await resp.text();
+    carDegradation.data = parseCarCSV(text);
+    carDegradation.loaded = true;
+    carDegradation.error = null;
+  } catch (e) {
+    carDegradation.error = e.message;
+    console.error('Erreur chargement degradation_voiture.csv :', e);
+  } finally {
+    carDegradation.loading = false;
+  }
+}
+
+function parseCarCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(';').map(h => h.trim());
+  const cols = lines[1].split(';');
+  const data = {};
+  for (let i = 1; i < headers.length; i++) {
+    data[headers[i]] = parseVal(cols[i]);
+  }
+  return data;
+}
+
+function waitForCarDegradation(cb) {
+  if (carDegradation.loaded || carDegradation.error) { cb(); return; }
+  const check = setInterval(() => {
+    if (carDegradation.loaded || carDegradation.error) {
+      clearInterval(check);
+      cb();
+    }
+  }, 150);
+}
+// ─── FIN DÉGRADATION VOITURE ───
+
+  /* ══════════════════════════════════════
+   OUTIL RALLYE GAME : SUPERCALCULATEUR
+══════════════════════════════════════ */
+
+const SPONSORS_LIST = [
+  { id: 'bibingomme',        label: 'Bibingomme',          effect: null },
+  { id: 'acero',             label: 'ACERO',                effect: 'xp2x',       effectLabel: 'Double le gain d\'xp auto et pilote' },
+  { id: 'agent-commercial',  label: 'Agent commercial',    effect: null },
+  { id: 'ambulances',        label: 'Ambulances ÇaUrge',   effect: null },
+  { id: 'assistance-pro',    label: 'Assistance pro',      effect: 'assist-half', effectLabel: 'Divise la durée des actions d\'assistance par deux' },
+  { id: 'bimas',             label: 'Bimas Automobile',    effect: 'wear-half',   effectLabel: 'Usure auto et pneus deux fois plus lente' },
+  { id: 'chez-dino',         label: 'Chez Dino',           effect: null },
+  { id: 'chimie-challenge',  label: 'ChimieChallenge',     effect: null },
+  { id: 'techniciens',       label: 'Équipe de Techniciens', effect: null },
+  { id: 'fripouille',        label: 'FripouilleBanque',    effect: null },
+  { id: 'jacko',             label: 'JackoLeBricolo',      effect: null },
+  { id: 'payetagomme',       label: 'PayeTaGomme',         effect: null },
+  { id: 'pieceautoroulis',   label: 'PièceAutoRoulis',     effect: null },
+  { id: 'societe-geniale',   label: 'Société Géniale',     effect: null },
+  { id: 'transports-afond',  label: 'Transports Afond',    effect: null },
+];
+
+let superCalc = {
+  config: {
+    usureInitiale: null,
+    xpVoiture: null,
+    xpAsphalte: null,
+    xpTerreNeige: null,
+    confiance: null,
+    sponsors: []   // max 2 ids, ex: ['acero','bimas']
+  },
+  started: false,  // passe à true après "Démarrer le rallye"
+  days: []         // rempli aux étapes suivantes
+};
+
+function toolSuperCalcHTML() {
+  return `
+  <div class="tool-panel" style="max-width:900px;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar"></span> Supercalculateur</h2>
+      <p>Simulez la dégradation de la voiture et des pneus, spéciale par spéciale, sur l'ensemble d'un rallye.</p>
+    </div>
+    <div id="supercalc-content"></div>
+  </div>`;
+}
+
+function initSuperCalc() {
+  renderSuperCalcSetup();
+}
+
+function renderSuperCalcSetup() {
+  const c = superCalc.config;
+  const container = document.getElementById('supercalc-content');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="calc-grid fadein fadein-d1" style="margin-bottom:1.4rem;">
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">🚗</span> Usure voiture de départ</div>
+        <div class="field">
+          <label>Usure actuelle (%)</label>
+          <input type="number" id="sc-usure" min="0" max="100" step="0.1"
+            placeholder="ex : 0" value="${c.usureInitiale ?? ''}"
+            oninput="sc_updateConfig('usureInitiale', this.value)" />
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">🧠</span> Confiance</div>
+        <div class="field">
+          <label>Confiance (0 à 100)</label>
+          <input type="number" id="sc-confiance" min="0" max="100" step="1"
+            placeholder="ex : 50" value="${c.confiance ?? ''}"
+            oninput="sc_updateConfig('confiance', this.value)" />
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">XP</span> XP Voiture</div>
+        <div class="field">
+          <label>XP voiture actuel</label>
+          <input type="number" id="sc-xp-voiture" min="0" step="1"
+            placeholder="ex : 0" value="${c.xpVoiture ?? ''}"
+            oninput="sc_updateConfig('xpVoiture', this.value)" />
+        </div>
+      </div>
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">XP</span> XP Asphalte</div>
+        <div class="field">
+          <label>XP pilote asphalte actuel</label>
+          <input type="number" id="sc-xp-asphalte" min="0" step="1"
+            placeholder="ex : 0" value="${c.xpAsphalte ?? ''}"
+            oninput="sc_updateConfig('xpAsphalte', this.value)" />
+        </div>
+      </div>
+      <div class="calc-card full">
+        <div class="card-title"><span class="tag">XP</span> XP Terre / Neige</div>
+        <div class="field">
+          <label>XP pilote terre/neige actuel</label>
+          <input type="number" id="sc-xp-terre" min="0" step="1"
+            placeholder="ex : 0" value="${c.xpTerreNeige ?? ''}"
+            oninput="sc_updateConfig('xpTerreNeige', this.value)" />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label fadein fadein-d2">Sponsors (2 maximum)</div>
+    <div class="calc-card fadein fadein-d2" style="margin-bottom:1.4rem;">
+      <div class="brand-grid" id="sc-sponsor-grid" style="grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));">
+        ${SPONSORS_LIST.map(s => `
+          <div class="brand-btn ${c.sponsors.includes(s.id) ? 'selected' : ''}"
+               id="sc-sponsor-${s.id}"
+               onclick="sc_toggleSponsor('${s.id}')"
+               style="padding:.8rem .6rem;">
+            <span style="font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.06em;text-align:center;">${s.label}</span>
+            ${s.effectLabel ? `<span style="font-size:.62rem;color:var(--muted);text-align:center;line-height:1.3;">${s.effectLabel}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <div id="sc-sponsor-error" style="color:var(--red);font-size:.8rem;margin-top:.8rem;display:none;">Vous ne pouvez sélectionner que 2 sponsors maximum.</div>
+    </div>
+
+    <div id="sc-config-error" style="color:var(--red);font-size:.82rem;margin-bottom:1rem;display:none;"></div>
+
+    <button class="btn-calc-setup" style="width:100%;padding:1rem;font-size:1.05rem;" onclick="sc_startRally()">
+      🏁 Démarrer le rallye
+    </button>
+  `;
+}
+
+function sc_updateConfig(key, val) {
+  const num = parseFloat(val);
+  superCalc.config[key] = val === '' ? null : (isNaN(num) ? null : num);
+}
+
+function sc_toggleSponsor(id) {
+  const c = superCalc.config;
+  const errEl = document.getElementById('sc-sponsor-error');
+  if (c.sponsors.includes(id)) {
+    c.sponsors = c.sponsors.filter(s => s !== id);
+    errEl.style.display = 'none';
+  } else {
+    if (c.sponsors.length >= 2) {
+      errEl.style.display = 'block';
+      return;
+    }
+    c.sponsors.push(id);
+    errEl.style.display = 'none';
+  }
+  document.querySelectorAll('#sc-sponsor-grid .brand-btn').forEach(el => el.classList.remove('selected'));
+  c.sponsors.forEach(sid => {
+    const el = document.getElementById('sc-sponsor-' + sid);
+    if (el) el.classList.add('selected');
+  });
+}
+
+function sc_startRally() {
+  const c = superCalc.config;
+  const errEl = document.getElementById('sc-config-error');
+  const required = ['usureInitiale', 'xpVoiture', 'xpAsphalte', 'xpTerreNeige', 'confiance'];
+  for (const k of required) {
+    if (c[k] === null) {
+      errEl.textContent = 'Veuillez renseigner tous les champs avant de démarrer.';
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+  errEl.style.display = 'none';
+  superCalc.started = true;
+  renderSuperCalcDays();
+}
+
+/* ─── ÉTAPE 3 : JOURS DU RALLYE ─── */
+
+// Charge tireData si pas déjà fait (sans passer par le rendu de l'outil "Dégradation pneus")
+function ensureTireDataLoaded(cb) {
+  if (tireData && tireData.length > 0) { cb(); return; }
+  fetch(CSV_PATH)
+    .then(resp => { if (!resp.ok) throw new Error('CSV not found'); return resp.text(); })
+    .then(text => { tireData = parseCSV(text); cb(); })
+    .catch(e => { console.error('Erreur chargement pneus (supercalc) :', e); cb(); });
+}
+
+function buildPneuOptionsHTML(selected) {
+  return tireData.map(t =>
+    `<option value="${t.pneu}" ${selected === t.pneu ? 'selected' : ''}>${t.pneu} (${t.gomme})</option>`
+  ).join('');
+}
+
+function sc_addDay() {
+  if (superCalc.days.length >= 3) return;
+  superCalc.days.push({
+    numero: superCalc.days.length + 1,
+    surface: '',
+    meteo: '',
+    pneuTrain: '',
+    pneuUsureInitiale: null,
+    items: []   // rempli à l'étape 4 (assistances / spéciales)
+  });
+  renderDaysList();
+}
+
+function sc_removeDay(idx) {
+  superCalc.days.splice(idx, 1);
+  superCalc.days.forEach((d, i) => d.numero = i + 1);
+  renderDaysList();
+}
+
+function sc_setDayField(idx, key, val) {
+  superCalc.days[idx][key] = val;
+}
+
+function sc_setDayNumField(idx, key, val) {
+  const num = parseFloat(val);
+  superCalc.days[idx][key] = val === '' ? null : (isNaN(num) ? null : num);
+}
+
+function renderSuperCalcDays() {
+  const container = document.getElementById('supercalc-content');
+  if (!container) return;
+
+  ensureTireDataLoaded(() => {
+    container.innerHTML = `
+      <div class="section-label fadein">Structure du rallye</div>
+      <div style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+        Ajoutez 1 à 3 jours. Pour chaque jour : la surface (détermine où va l'xp gagné), la météo (informatif) et le train de pneus de départ.
+      </div>
+
+      <div id="sc-days-list" style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1.2rem;"></div>
+
+      <div style="display:flex;gap:.8rem;margin-bottom:1.6rem;">
+        <button class="btn-calc-setup" onclick="sc_addDay()" ${superCalc.days.length >= 3 ? 'disabled' : ''} style="${superCalc.days.length >= 3 ? 'opacity:.4;cursor:not-allowed;' : ''}">+ Ajouter un jour</button>
+        <button class="btn-reset-setup" onclick="sc_backToConfig()">← Retour config</button>
+      </div>
+
+      <div id="sc-days-error" style="color:var(--red);font-size:.82rem;margin-bottom:1rem;display:none;"></div>
+
+      <button class="btn-calc-setup" style="width:100%;padding:1rem;font-size:1.05rem;" onclick="sc_validateDays()">
+        ✓ Valider les jours et continuer
+      </button>
+    `;
+    renderDaysList();
+  });
+}
+
+function renderDaysList() {
+  const list = document.getElementById('sc-days-list');
+  if (!list) return;
+  if (superCalc.days.length === 0) {
+    list.innerHTML = `<div class="no-data-msg">Aucun jour ajouté. Cliquez sur "+ Ajouter un jour" pour commencer.</div>`;
+    return;
+  }
+  list.innerHTML = superCalc.days.map((d, idx) => `
+    <div class="calc-card" style="border-color:rgba(232,82,42,.25);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div class="card-title" style="margin:0;"><span class="tag">Jour ${d.numero}</span></div>
+        <button onclick="sc_removeDay(${idx})" style="background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:8px;color:var(--red);font-size:.78rem;padding:.3rem .7rem;cursor:pointer;">🗑 Supprimer</button>
+      </div>
+      <div class="calc-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:.9rem;">
+        <div class="field" style="margin:0;">
+          <label>Surface</label>
+          <select onchange="sc_setDayField(${idx},'surface',this.value)">
+            <option value="">— Choisir —</option>
+            <option value="Asphalte" ${d.surface === 'Asphalte' ? 'selected' : ''}>Asphalte</option>
+            <option value="Terre/Neige" ${d.surface === 'Terre/Neige' ? 'selected' : ''}>Terre / Neige</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Météo (informatif)</label>
+          <select onchange="sc_setDayField(${idx},'meteo',this.value)">
+            <option value="">— Choisir —</option>
+            ${METEO_DATA.map(m => `<option value="${m.id}" ${d.meteo === m.id ? 'selected' : ''}>${m.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Train de pneus de départ</label>
+          <select onchange="sc_setDayField(${idx},'pneuTrain',this.value)">
+            <option value="">— Choisir —</option>
+            ${buildPneuOptionsHTML(d.pneuTrain)}
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Usure initiale du train (%)</label>
+          <input type="number" min="0" max="100" step="0.1" value="${d.pneuUsureInitiale ?? ''}"
+            oninput="sc_setDayNumField(${idx},'pneuUsureInitiale',this.value)" />
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function sc_backToConfig() {
+  renderSuperCalcSetup();
+}
+
+function sc_validateDays() {
+  const errEl = document.getElementById('sc-days-error');
+  if (superCalc.days.length === 0) {
+    errEl.textContent = 'Ajoutez au moins un jour.';
+    errEl.style.display = 'block';
+    return;
+  }
+  for (const d of superCalc.days) {
+    if (!d.surface || !d.pneuTrain || d.pneuUsureInitiale === null) {
+      errEl.textContent = `Le jour ${d.numero} est incomplet (surface, train de pneus et usure initiale requis).`;
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+  errEl.style.display = 'none';
+  console.log('Jours validés :', JSON.parse(JSON.stringify(superCalc.days)));
+  alert('Jours validés ! (Étape 4 à venir : timeline assistances / spéciales)');
+}
+  
 function getBrand(pneu) {
   return BRANDS.find(b => pneu.startsWith(b)) || '';
 }
