@@ -45,6 +45,10 @@
     /* PAGES */
     .page { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; transition: opacity .5s, transform .5s; }
     .page.hidden { opacity: 0; pointer-events: none; transform: translateY(20px); }
+    #page-app {
+  align-items: stretch;
+  justify-content: flex-start;
+}
 
     /* PASSWORD */
     #page-password { flex-direction: column; gap: 2rem; padding: 2rem; }
