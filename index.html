@@ -1437,6 +1437,11 @@ function sc_wearColor(pct) {
   return '#e74c3c';                // rouge
 }
 
+function sc_wearSpan(val) {
+  const col = sc_wearColor(val);
+  return `<strong style="color:${col}">${val.toFixed(2)}%</strong>`;
+}
+
 function toolSuperCalcHTML() {
   return `
   <div class="tool-panel" style="max-width:95%;">
@@ -1925,7 +1930,7 @@ function renderTimeline() {
           <ul style="margin:0 0 .6rem 1.2rem;font-size:.82rem;color:var(--text);">
             ${ci.effects.map(e => `<li>${e}</li>`).join('')}
           </ul>
-          <div style="font-size:.75rem;color:var(--muted);">Usure voiture après : <strong style="color:var(--text)">${ci.carUsureAfter.toFixed(2)}%</strong> · Usure pneu après : <strong style="color:var(--text)">${ci.tireUsureAfter.toFixed(2)}%</strong></div>
+          <div style="font-size:.75rem;color:var(--muted);">Usure voiture après : ${sc_wearSpan(ci.carUsureAfter)} · Usure pneu après : ${sc_wearSpan(ci.tireUsureAfter)}</div>
         </div>`;
       } else {
         html += `
@@ -1936,12 +1941,12 @@ function renderTimeline() {
           </div>
           <div style="font-size:.82rem;color:var(--text);">
             ${ci.tireAvailable
-              ? `Usure pneu (${ci.tireName}) : +${ci.tireDelta.toFixed(2)}% → <strong>${ci.tireUsureAfter.toFixed(2)}%</strong>`
-              : `<span style="color:var(--red);">⚠️ Donnée de dégradation pneu non disponible pour cette attaque</span>`}
-            <br>
-            ${ci.carAvailable
-              ? `Usure voiture : +${ci.carDelta.toFixed(2)}% → <strong>${ci.carUsureAfter.toFixed(2)}%</strong>`
-              : `<span style="color:var(--red);">⚠️ Donnée de dégradation voiture non disponible pour cette attaque</span>`}
+  ? `Usure pneu (${ci.tireName}) : +${ci.tireDelta.toFixed(2)}% → ${sc_wearSpan(ci.tireUsureAfter)}`
+  : `<span style="color:var(--red);">⚠️ Donnée de dégradation pneu non disponible pour cette attaque</span>`}
+<br>
+${ci.carAvailable
+  ? `Usure voiture : +${ci.carDelta.toFixed(2)}% → ${sc_wearSpan(ci.carUsureAfter)}`
+  : `<span style="color:var(--red);">⚠️ Donnée de dégradation voiture non disponible pour cette attaque</span>`}
           </div>
         </div>`;
       }
