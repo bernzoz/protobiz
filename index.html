@@ -1429,6 +1429,14 @@ function sc_getTrain(id) {
   return superCalc.trains.find(t => t.id === id);
 }
 
+function sc_wearColor(pct) {
+  if (pct < 5)  return '#2ecc71';  // vert
+  if (pct < 25) return '#9aa0a6';  // gris
+  if (pct < 50) return '#3b9ef5';  // bleu
+  if (pct < 80) return '#f1c40f';  // jaune
+  return '#e74c3c';                // rouge
+}
+
 function toolSuperCalcHTML() {
   return `
   <div class="tool-panel" style="max-width:900px;">
@@ -1828,11 +1836,11 @@ function sc_recompute() {
   activeTrain.usureActuelle = Math.max(0, activeTrain.usureActuelle - 2);
   effects.push(`${def.label} — -2% usure pneu`);
           } else if (actionKey === 'cameras') {
-            const gain = aceroActive ? 2 : 1;
+            const gain = 1;
             if (day.surface === 'Asphalte') xpAsphalte += gain; else xpTerreNeige += gain;
             effects.push(`${def.label} — +${gain} xp pilote (${day.surface || '?'})`);
           } else if (actionKey === 'conseils') {
-            const gain = aceroActive ? 2 : 1;
+            const gain = 1;
             xpVoiture += gain;
             effects.push(`${def.label} — +${gain} xp voiture`);
           } else if (actionKey === 'notes') {
@@ -1864,11 +1872,16 @@ function sc_recompute() {
   if (tireAvailable) activeTrain.usureActuelle = Math.min(100, activeTrain.usureActuelle + tireDelta);
   if (carAvailable) carUsure = Math.min(100, carUsure + carDelta);
 
+  // ← AJOUT : gain d'xp pilote au km, doublé par Acero
+  const xpGain = (item.km / 10) * (aceroActive ? 2 : 1);
+  if (day.surface === 'Asphalte') xpAsphalte += xpGain; else xpTerreNeige += xpGain;
+
   day.computedItems.push({
     type: 'speciale', km: item.km, attack: item.attack,
     tireAvailable, tireDelta, tireUsureAfter: activeTrain.usureActuelle,
     carAvailable, carDelta, carUsureAfter: carUsure,
-    tireName: tireRow ? tireRow.pneu : '?'
+    tireName: tireRow ? tireRow.pneu : '?',
+    xpGain   // ← AJOUT : pour pouvoir l'afficher dans la timeline si vous voulez plus tard
   });
 }
     });
@@ -2108,7 +2121,7 @@ function sc_showFinalResult() {
   // Récap par train (usure finale + jours où il a été utilisé)
 const tireRecapHTML = superCalc.trains.map(train => {
   const tireRow = tireData[train.tireIdx];
-  const usureCol = train.usureActuelle <= 20 ? '#2ecc71' : train.usureActuelle <= 50 ? '#f1c40f' : train.usureActuelle <= 80 ? '#e67e22' : '#e74c3c';
+  const usureCol = sc_wearColor(train.usureActuelle); // ou day.finalTireUsure selon votre version actuelle
   // jours où ce train a servi comme train de départ, ou comme train de remplacement en assistance
   const joursUtilises = superCalc.days
     .filter(d => d.trainId === train.id || d.items.some(it => it.type === 'assistance' && it.newTrainId === train.id))
@@ -2123,7 +2136,7 @@ const tireRecapHTML = superCalc.trains.map(train => {
   </div>`;
 }).join('');
 
-  const usureVoitCol = r.carUsure <= 20 ? '#2ecc71' : r.carUsure <= 50 ? '#f1c40f' : r.carUsure <= 80 ? '#e67e22' : '#e74c3c';
+  const usureVoitCol = sc_wearColor(r.carUsure);
 
   container.innerHTML = `
     <div class="section-label fadein">Résultat final du rallye</div>
