@@ -960,7 +960,8 @@ const GAMES = {
         { id: 'gpro-fuel',   icon: '⛽', label: "Carburant"               },
         { id: 'gpro-tyre-deg', icon: '🔴', label: "Dégradation pneus"     },
         { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" },
-        { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" }
+        { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" },
+        { id: 'gpro-analyse', icon: '📈', label: "Analyse" }
       ]},
       { title: 'Bientôt disponible', items: [
         { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
@@ -1126,6 +1127,10 @@ function renderTool() {
   } else if (currentTool === 'gpro-meteo-setup') {
     topbarTool.textContent = "Modificateur Météo Setup";
     content.innerHTML = toolGproMeteoSetupHTML();
+  } else if (currentTool === 'gpro-analyse') {
+    topbarTool.textContent = "Analyse de course";
+    content.innerHTML = toolGproAnalyseHTML();
+    initGproAnalyse();
   }
 }
 
@@ -4334,6 +4339,532 @@ function calcTyreDegProjection(pctPerKm, lapLen) {
   if (detail) detail.innerHTML = `${laps} tours × ${lapLen} km = ${kmProj.toFixed(2)} km × ${pctPerKm.toFixed(4)} %/km`;
 }
 
+/* ══════════════════════════════════════
+   OUTIL GPRO : ANALYSE DE COURSE
+══════════════════════════════════════ */
+
+let ga_raceData = null;
+
+function toolGproAnalyseHTML() {
+  return `
+  <div class="tool-panel" style="max-width:95%;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Analyse de course</h2>
+      <p>Collez le code source de la page RaceAnalysis.asp du jeu pour générer un fichier Excel (.xls) d'analyse, au format identique à celui du jeu.</p>
+    </div>
+
+    <!-- ÉTAPE 1 -->
+    <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.25);margin-bottom:1.4rem;">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">1</span> Coller le code source</div>
+      <div style="font-size:.82rem;color:var(--muted);line-height:1.6;margin-bottom:.8rem;">
+        Sur la page <b style="color:var(--text);">RaceAnalysis.asp</b> du jeu, faites <code style="background:var(--surface2);padding:1px 6px;border-radius:3px;">Ctrl+U</code> (ou clic droit → Afficher le code source), sélectionnez tout (<code style="background:var(--surface2);padding:1px 6px;border-radius:3px;">Ctrl+A</code>), copiez et collez ci-dessous.
+      </div>
+      <textarea id="ga-html-input" placeholder="Collez ici le code source HTML complet de la page RaceAnalysis.asp..."
+        style="width:100%;min-height:180px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:monospace;font-size:.78rem;padding:.9rem 1rem;resize:vertical;outline:none;transition:border-color .2s;line-height:1.5;"
+        onfocus="this.style.borderColor='#3b9ef5'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      <div style="display:flex;gap:.8rem;margin-top:1rem;flex-wrap:wrap;">
+        <button class="btn-calc-setup" onclick="ga_parse()">⚡ Analyser le HTML</button>
+        <button class="btn-reset-setup" onclick="ga_clear()">Effacer</button>
+      </div>
+      <div id="ga-status" style="margin-top:1rem;padding:.7rem 1rem;border-radius:8px;font-size:.85rem;font-weight:600;display:none;"></div>
+    </div>
+
+    <!-- ÉTAPE 2 : APERÇU -->
+    <div id="ga-preview-step" style="display:none;">
+      <div class="section-label">Vérification des données extraites</div>
+      <div class="calc-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.4rem;" id="ga-stats-bar"></div>
+      <div class="calc-card fadein" style="padding:0;overflow:auto;max-height:340px;margin-bottom:1.4rem;">
+        <table id="ga-preview-table" style="width:100%;border-collapse:collapse;font-size:.8rem;"></table>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 3 : TÉLÉCHARGEMENT -->
+    <div id="ga-download-step" style="display:none;text-align:center;padding:.4rem 0 1rem;">
+      <button class="btn-calc-setup" style="padding:1rem 2.4rem;font-size:1rem;" onclick="ga_downloadXls()">💾 Télécharger le fichier .xls</button>
+      <div style="margin-top:.7rem;font-size:.78rem;color:var(--muted);">Format identique au fichier original du jeu (HTML encodé en .xls)</div>
+    </div>
+  </div>`;
+}
+
+function initGproAnalyse() {
+  ga_raceData = null;
+  const status = document.getElementById('ga-status');
+  if (status) status.style.display = 'none';
+  const p = document.getElementById('ga-preview-step');
+  const d = document.getElementById('ga-download-step');
+  if (p) p.style.display = 'none';
+  if (d) d.style.display = 'none';
+}
+
+function ga_clear() {
+  const input = document.getElementById('ga-html-input');
+  if (input) input.value = '';
+  const status = document.getElementById('ga-status');
+  if (status) status.style.display = 'none';
+  const p = document.getElementById('ga-preview-step');
+  const d = document.getElementById('ga-download-step');
+  if (p) p.style.display = 'none';
+  if (d) d.style.display = 'none';
+  ga_raceData = null;
+}
+
+function ga_showStatus(type, msg) {
+  const el = document.getElementById('ga-status');
+  if (!el) return;
+  el.style.display = 'block';
+  if (type === 'ok') {
+    el.style.background = 'rgba(46,204,113,.1)';
+    el.style.border = '1px solid rgba(46,204,113,.3)';
+    el.style.color = '#2ecc71';
+  } else {
+    el.style.background = 'rgba(231,76,60,.1)';
+    el.style.border = '1px solid rgba(231,76,60,.3)';
+    el.style.color = '#e74c3c';
+  }
+  el.textContent = msg;
+}
+
+function ga_gt(el) {
+  if (!el) return '';
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('.screen-reader-text').forEach(e => e.remove());
+  return (clone.textContent || clone.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+// ── Main parser (logique inchangée, juste renommée en ga_) ──────────────────
+function ga_parse() {
+  const raw = document.getElementById('ga-html-input').value.trim();
+  if (!raw) { ga_showStatus('err', "Collez d'abord le HTML de la page d'analyse."); return; }
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(raw, 'text/html');
+
+    // ── 1. TITLE ──
+    let title = '';
+    const h1 = doc.querySelector('h1.block.center');
+    if (h1) {
+      const h1text = ga_gt(h1);
+      const m = h1text.match(/:\s*(.+?)\s*-\s*(Saison\s*\d+)\s*-\s*(Course\s*\d+)/i);
+      if (m) title = m[1].trim() + ', ' + m[2].trim().replace('Saison','Saison') + ' - ' + m[3].trim();
+      else title = h1text.replace('Analyse de la course:', '').trim();
+    }
+    if (!title) {
+      const titleTag = doc.querySelector('title');
+      if (titleTag) {
+        const t = ga_gt(titleTag);
+        const m = t.match(/Saison\s*(\d+)\s*-\s*Course\s*(\d+)\s*-\s*(.+?)\s*-\s*Grand/i);
+        if (m) title = m[3].trim() + ', Saison ' + m[1] + ' - Course ' + m[2];
+        else title = t.split(' - ').slice(1,4).join(', ');
+      }
+    }
+
+    // ── 2. LAPS TABLE ──
+    let lapsTable = null;
+    const allTables = doc.querySelectorAll('table');
+    for (const t of allTables) {
+      const stepEl = t.querySelector('[data-step="3"]');
+      if (stepEl) { lapsTable = t; break; }
+      const firstTr = t.querySelector('tr');
+      if (firstTr) {
+        const htext = ga_gt(firstTr);
+        if (htext.includes('Tour') && htext.includes('Chrono') && htext.includes('Pneus')) {
+          lapsTable = t; break;
+        }
+      }
+    }
+
+    if (!lapsTable) {
+      ga_showStatus('err', "Tableau des tours introuvable. Vérifiez que vous avez bien copié la page RaceAnalysis.asp complète.");
+      return;
+    }
+
+    const allRows = Array.from(lapsTable.querySelectorAll('tr'));
+    let headerIdx = 0;
+    for (let i = 0; i < allRows.length; i++) {
+      const txt = ga_gt(allRows[i]);
+      if (txt.includes('Tour') && txt.includes('Chrono')) { headerIdx = i; break; }
+    }
+
+    const laps = [];
+    for (let i = headerIdx + 1; i < allRows.length; i++) {
+      const row = allRows[i];
+      const cells = Array.from(row.querySelectorAll('td'));
+      if (cells.length < 7) continue;
+
+      const tourCell = cells[0].cloneNode(true);
+      tourCell.querySelectorAll('sup').forEach(s => s.remove());
+      const tour = ga_gt(tourCell).replace(/[^\d-]/g, '') || ga_gt(tourCell);
+
+      const chrono = ga_gt(cells[1]);
+      const pos = ga_gt(cells[2]);
+      const pneus = ga_gt(cells[3]);
+      const meteo = ga_gt(cells[4]);
+      const temp = ga_gt(cells[5]).replace('°', '').replace('°C','').trim();
+      const hum = ga_gt(cells[6]).replace('%', '').trim();
+
+      let events = '-';
+      if (cells[7]) {
+        const evText = ga_gt(cells[7]);
+        events = evText || '-';
+      }
+
+      if (tour === '' || isNaN(parseInt(tour))) continue;
+
+      laps.push([tour, chrono, pos, pneus, meteo, temp, hum, events]);
+    }
+
+    if (laps.length === 0) {
+      ga_showStatus('err', "Aucun tour trouvé dans le tableau. La structure HTML est peut-être différente.");
+      return;
+    }
+
+    // ── 3. RISKS ──
+    let risks = null;
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if (!txt.includes('Dépassement') && !txt.includes('Depassement')) continue;
+      if (!txt.includes('Défense') && !txt.includes('Defense')) continue;
+
+      const trs = Array.from(t.querySelectorAll('tr'));
+      for (let i = trs.length - 1; i >= 0; i--) {
+        const cells = Array.from(trs[i].querySelectorAll('td'));
+        const vals = cells.map(c => ga_gt(c)).filter(v => v && /^\d+$/.test(v.trim()));
+        if (vals.length >= 4) {
+          const allVals = cells.map(c => ga_gt(c));
+          risks = allVals;
+          break;
+        }
+      }
+      if (risks) break;
+    }
+
+    // ── 4. ENERGY ──
+    let energyBefore = '', energyAfter = '';
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if (!txt.includes('nergie du pilote')) continue;
+
+      const labels = Array.from(t.querySelectorAll('.barLabel'));
+      if (labels.length >= 6) {
+        energyBefore = labels[4].textContent.trim();
+        energyAfter  = labels[5].textContent.trim();
+      } else if (labels.length >= 2) {
+        energyBefore = labels[labels.length-2].textContent.trim();
+        energyAfter  = labels[labels.length-1].textContent.trim();
+      }
+      break;
+    }
+    const energy = (energyBefore && energyAfter) ? energyBefore + ' > ' + energyAfter : '';
+
+    // ── 5. SETUP ──
+    let setup = null;
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if ((!txt.includes('glages utilis') && !txt.includes('Réglages')) ) continue;
+      if (!txt.includes('A.Av') && !txt.includes('Aileron')) continue;
+
+      const trs = Array.from(t.querySelectorAll('tr'));
+      for (const tr of trs) {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        if (cells.length < 2) continue;
+        const firstCell = ga_gt(cells[0]).toLowerCase();
+        if (firstCell === 'course') {
+          setup = {
+            aav:   ga_gt(cells[1]),
+            aar:   ga_gt(cells[2]),
+            mot:   ga_gt(cells[3]),
+            fre:   ga_gt(cells[4]),
+            bv:    ga_gt(cells[5]),
+            susp:  ga_gt(cells[6])
+          };
+          break;
+        }
+      }
+      if (setup) break;
+    }
+
+    // ── 6. WEAR ──
+    let wearLevel = null, wearStart = null, wearEnd = null;
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if (!txt.includes('Niveau des pi') && !txt.includes('niveau des pi')) continue;
+      if (!txt.includes('Usure')) continue;
+
+      const trs = Array.from(t.querySelectorAll('tr'));
+
+      function nextValueRow(startIdx) {
+        for (let j = startIdx; j < trs.length; j++) {
+          const tds = Array.from(trs[j].querySelectorAll('td'));
+          if (tds.length < 11) continue;
+          const vals = tds.map(c => ga_gt(c).replace('%','').trim());
+          const isDataRow = vals.every(v => v === '' || /^\d+$/.test(v));
+          if (isDataRow) return vals;
+        }
+        return null;
+      }
+
+      for (let i = 0; i < trs.length; i++) {
+        const ths = Array.from(trs[i].querySelectorAll('th'));
+        if (ths.length === 0) continue;
+        const thTxt = ths.map(th => ga_gt(th)).join(' ');
+
+        if (thTxt.includes('Niveau des')) {
+          wearLevel = nextValueRow(i + 1);
+        } else if (thTxt.includes('part') && thTxt.includes('sure')) {
+          wearStart = nextValueRow(i + 1);
+          if (wearStart) wearStart = wearStart.map(v => v.replace('%','').trim());
+        } else if ((thTxt.includes('arriv') || thTxt.includes('Arriv')) && thTxt.includes('sure')) {
+          wearEnd = nextValueRow(i + 1);
+          if (wearEnd) wearEnd = wearEnd.map(v => v.replace('%','').trim());
+        }
+      }
+      if (wearLevel || wearStart) break;
+    }
+
+    // ── 7. FUEL START ──
+    let fuelStart = '';
+    const bodyText = doc.body ? doc.body.innerHTML : raw;
+    const fuelMatch = bodyText.match(/Carburant au d[ée]part[^<:]*:\s*<[^>]*>?\s*(\d+)\s*&?nbsp?;?litres/i)
+                   || bodyText.match(/Carburant au d[ée]part[^<:]*:\s*(\d+)\s*(?:&nbsp;)?litres/i);
+    if (fuelMatch) fuelStart = fuelMatch[1];
+    if (!fuelStart) {
+      for (const t of allTables) {
+        const txt = ga_gt(t);
+        if (txt.includes('Carburant au d')) {
+          const trs = Array.from(t.querySelectorAll('tr'));
+          for (const tr of trs) {
+            const trtxt = ga_gt(tr);
+            if (trtxt.includes('Carburant au d')) {
+              const cells = Array.from(tr.querySelectorAll('td'));
+              if (cells.length >= 2) { fuelStart = ga_gt(cells[1]).replace('litres','').trim(); break; }
+            }
+          }
+          if (fuelStart) break;
+        }
+      }
+    }
+
+    // ── 8. PIT STOPS ──
+    let pitStops = [];
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if (!txt.includes('Etat des pneus') && !txt.includes('État des pneus')) continue;
+      if (!txt.includes('Carburant')) continue;
+      if (!txt.includes('Arr')) continue;
+
+      const trs = Array.from(t.querySelectorAll('tr'));
+      for (let i = 1; i < trs.length; i++) {
+        const cells = Array.from(trs[i].querySelectorAll('td'));
+        if (cells.length < 4) continue;
+        const firstTxt = ga_gt(cells[0]);
+        if (!firstTxt.match(/Arr[eê]t\s*\d/i)) continue;
+
+        const stand   = firstTxt.replace(/\s+/g,' ').replace('&nbsp;',' ').trim();
+        const raison  = ga_gt(cells[1]);
+        const pneuEtat= ga_gt(cells[2]).replace('%','').trim();
+        const carbPct = ga_gt(cells[3]).replace('%','').trim();
+        const carbApr = ga_gt(cells[4]);
+        const temps   = ga_gt(cells[5]);
+
+        pitStops.push([stand, raison, pneuEtat, carbPct, carbApr, temps]);
+      }
+      if (pitStops.length > 0) break;
+    }
+
+    // ── 9. FINAL STATE ──
+    let finalTires = '', finalFuel = '';
+    if (doc.body) {
+      const paras = Array.from(doc.body.querySelectorAll('p'));
+      for (const p of paras) {
+        const txt = ga_gt(p);
+        if (txt.includes('pneus') && txt.includes('fin de la course')) {
+          const m = txt.match(/(\d+)\s*%/);
+          if (m) finalTires = m[1];
+        }
+        if (txt.includes('Carburant') && txt.includes('fin de course')) {
+          const m = txt.match(/(\d+)\s*litres/);
+          if (m) finalFuel = m[1];
+        }
+      }
+    }
+    if (!finalTires) {
+      const m = raw.match(/pneus[^<]*fin de la course[^<]*<[^>]*>\s*(\d+)/i)
+              || raw.match(/pneus.*?fin.*?(\d+)\s*%/i);
+      if (m) finalTires = m[1];
+    }
+    if (!finalFuel) {
+      const m = raw.match(/Carburant restant en fin de course[^<]*<[^>]*>\s*(\d+)/i)
+              || raw.match(/Carburant restant en fin.*?(\d+)\s*litres/i);
+      if (m) finalFuel = m[1];
+    }
+
+    ga_raceData = { title, laps, risks, energy, setup, wearLevel, wearStart, wearEnd, fuelStart, pitStops, finalTires, finalFuel };
+
+    ga_renderPreview();
+    ga_showStatus('ok', `✓ ${laps.length} tours extraits — "${title}"`);
+    document.getElementById('ga-preview-step').style.display = '';
+    document.getElementById('ga-download-step').style.display = '';
+
+  } catch(e) {
+    ga_showStatus('err', 'Erreur de parsing : ' + e.message);
+    console.error(e);
+  }
+}
+
+// ── Preview ──
+function ga_renderPreview() {
+  const { laps, pitStops, title } = ga_raceData;
+  const errors = laps.filter(r => r[7] && r[7].toLowerCase().includes('erreur')).length;
+  const techs  = laps.filter(r => r[7] && r[7].toLowerCase().includes('technique')).length;
+
+  document.getElementById('ga-stats-bar').innerHTML = `
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Course</div><div style="font-family:'Rajdhani',sans-serif;font-size:.95rem;font-weight:700;color:var(--text);line-height:1.3;">${title||'—'}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Tours</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:#3b9ef5;">${laps.length}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Arrêts stands</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:var(--accent2);">${pitStops.length}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Erreurs</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:${errors>0?'#e74c3c':'#2ecc71'};">${errors}</div></div>
+  `;
+
+  const headers = ['Tour','Chrono','Pos.','Pneus','Météo','Temp. (°)','Hum. (%)','Événements'];
+  let html = '<thead><tr>' + headers.map(h=>`<th style="background:rgba(59,158,245,.1);color:#3b9ef5;padding:.5rem .8rem;text-align:center;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.7rem;position:sticky;top:0;">${h}</th>`).join('') + '</tr></thead><tbody>';
+  for (const lap of laps) {
+    const ev = (lap[7]||'').toLowerCase();
+    let bg = 'transparent';
+    if (ev.includes('stands')) bg = 'rgba(241,196,15,.06)';
+    else if (ev.includes('erreur') || ev.includes('technique')) bg = 'rgba(231,76,60,.06)';
+    html += `<tr style="background:${bg};">` + lap.map(c=>`<td style="padding:.4rem .8rem;text-align:center;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;">${c}</td>`).join('') + '</tr>';
+  }
+  html += '</tbody>';
+  document.getElementById('ga-preview-table').innerHTML = html;
+}
+
+// ── XLS Generator (logique inchangée) ──
+function ga_esc(s) {
+  if (!s || s==='-') return s||'-';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function ga_generateXlsHtml() {
+  const d = ga_raceData;
+  let o = '';
+
+  o += '\r\n        <table>\r\n\t        <tr>\r\n\t\t        <td colspan="8"><b>' + ga_esc(d.title) + '</b></td>\r\n\t        </tr>\r\n        </table>\r\n        <br><br>\r\n';
+
+  o += '        <table>\r\n\t        <tr>\r\n';
+  const lapHdrs = ['Tour','Chrono','Pos.','Pneus','Météo','Temp. (°)','Hum. (%)','Événements'];
+  for (const h of lapHdrs) o += '\t\t        <td align="center"><b>' + ga_esc(h) + '</b></td>\r\n';
+  o += '\t        </tr>\r\n';
+
+  for (const lap of d.laps) {
+    if (lap[0] === '0') {
+      o += '\t        <tr>\r\n';
+      o += '\t\t\t\t<td align="center">' + ga_esc(lap[0]) + '</td>\r\n';
+      o += '\t\t\t\t<td align="center">-</td>\r\n';
+      o += '\t\t\t\t<td align="center">' + ga_esc(lap[2]) + '</td>\r\n';
+      o += '\t\t\t\t<td align="center">' + ga_esc(lap[3]) + '</td>\r\n';
+      o += '\t\t\t\t<td align="center" >\r\n\t\t\t\t' + ga_esc(lap[4]) + '\r\n\t\t\t\t</td>\r\n';
+      o += '\t\t\t\t<td align="center">' + ga_esc(lap[5]) + '</td>\r\n';
+      o += '\t\t\t\t<td align="center">' + ga_esc(lap[6]) + '</td>\r\n';
+      o += '\t\t\t\t<td align="center">-</td>\r\n';
+      o += '\t\t\t</tr>\r\n';
+    } else {
+      o += '\r\n\t\t<tr>\r\n\t\t\t<td align="center">' + ga_esc(lap[0]) + '</td>\r\n';
+      o += '<td align="center">' + ga_esc(lap[1]) + '</td>';
+      o += '<td align="center">' + ga_esc(lap[2]) + '</td>';
+      o += '<td align="center">' + ga_esc(lap[3]) + '</td>';
+      o += '<td align="center">' + ga_esc(lap[4]) + '</td>';
+      o += '<td align="center">' + ga_esc(lap[5]) + '</td>';
+      o += '<td align="center">' + ga_esc(lap[6]) + '</td>';
+      const evClean = ga_esc(lap[7]||'-');
+      o += '<td align="center">' + evClean + '</td>\r\n\t\t</tr>\r\n';
+    }
+  }
+  o += '        </table>\r\n        <br><br>\r\n';
+
+  if (d.risks) {
+    const rHdrs = ['Dépassement','Défense','Sec et dégagé','Mouillé','Disfonctionnement',''];
+    o += '        <table>\r\n\t        <tr ><td colspan="6" align="left"><b>Risques utilisés:</b></td></tr>\r\n\t        <tr >\r\n';
+    for (const h of rHdrs) o += '\t\t        <td align="center"><b>' + ga_esc(h) + '</b></td>\r\n';
+    o += '\t        </tr>\r\n\t        <tr>\r\n';
+    for (let i = 0; i < 6; i++) o += '\t\t        <td align="center">' + ga_esc((d.risks[i]||'')) + '</td>\r\n';
+    o += '\t        </tr>\r\n        </table><br>\r\n';
+  }
+
+  if (d.energy) {
+    o += '        \r\n        <table>\r\n\t\t\t<tr><td><b>Énergie du pilote</b></td></tr>\r\n\t\t\t<tr>\r\n\t\t\t\t<td>' + ga_esc(d.energy) + '</td>\r\n\t\t\t</tr>\r\n\t\t</table><br>\r\n\t\t\r\n';
+  }
+
+  if (d.setup) {
+    const sHdrs = ['Aileron avant','Aileron arrière','Moteur','Freins','B.V.','Suspension'];
+    const sVals = [d.setup.aav, d.setup.aar, d.setup.mot, d.setup.fre, d.setup.bv, d.setup.susp];
+    o += '\t    <table>\r\n\t\t    <tr ><td colspan="6" align="left"><b>Réglage utilisé:</b></td></tr>\r\n\t\t    <tr >\r\n';
+    for (const h of sHdrs) o += '\t\t\t    <td align="center"><b>' + ga_esc(h) + '</b></td>\r\n';
+    o += '\t\t    </tr>\r\n\t\t    <tr>\r\n';
+    for (const v of sVals) o += '\t\t\t    <td align="center">' + ga_esc(v||'') + '</td>\r\n';
+    o += '\t\t    </tr>\r\n\t    </table><br>\r\n';
+  }
+
+  const wCols = ['Cha.','Mot.','A.Av.','A.Ar.','F.P.','P.L.','Refr.','B.V.','Fre.','Susp.','Elec.'];
+  if (d.wearStart || d.wearEnd) {
+    o += '\t    <table>\r\n\t\t    <tr>\r\n\t\t        <td colspan="2" align="center"></td>\r\n';
+    for (const c of wCols) o += '\t\t\t    <td align="center"><b>' + c + '</b></td>\r\n';
+    o += '\t\t    </tr>\r\n';
+    if (d.wearLevel) {
+      o += '\t\t    <tr>\r\n\t\t        <td colspan="2" align="left"><b>Niveau des pièces de la voiture:</b></td>\r\n';
+      for (let i = 0; i < wCols.length; i++) o += '\t\t\t    <td align="center">' + ga_esc((d.wearLevel[i]||'')) + '</td>';
+      o += '\r\n\t\t    </tr>\r\n';
+    }
+    if (d.wearStart) {
+      o += '\t\t    <tr>\r\n\t\t        <td colspan="2" align="left"><b>Usure des pièces de la voiture (au départ) (%):</b></td>\r\n';
+      for (let i = 0; i < wCols.length; i++) o += '\t\t\t    <td align="center">' + ga_esc((d.wearStart[i]||'')) + '</td>';
+      o += '\r\n\t\t    </tr>\r\n';
+    }
+    if (d.wearEnd) {
+      o += '\t\t    <tr>\r\n\t\t        <td colspan="2" align="left" nowrap><b>Usure des pièces de la voiture (à l\'arrivée) (%):</b></td>\r\n';
+      for (let i = 0; i < wCols.length; i++) o += '\t\t\t    <td align="center">' + ga_esc((d.wearEnd[i]||'')) + '</td>';
+      o += '\r\n\t\t    </tr>\r\n';
+    }
+    o += '\t    </table><br>\r\n';
+  }
+
+  if (d.fuelStart) {
+    o += '        <table>\r\n\t        <tr>\r\n\t\t        <td><b>Carburant au départ (litres):</b></td>\r\n\t\t        <td align="left">' + ga_esc(d.fuelStart) + '</td>\r\n\t        </tr>\r\n        </table><br>\r\n\r\n';
+  }
+
+  if (d.pitStops && d.pitStops.length > 0) {
+    const pHdrs = ['Stands','Raison arrêt aux stands','Etat des pneus (%)','Carburant restant (%)','Carburant après arrêt (litres)','Temps arrêt aux stands (sec.)'];
+    o += '    <table>\r\n\t\t<tr>\r\n';
+    for (const h of pHdrs) o += '\t\t    <td align="center"><b>' + ga_esc(h) + '</b></td>\r\n';
+    o += '\t\t</tr>\r\n\r\n';
+    for (const pit of d.pitStops) {
+      o += '\t\t  <tr>\r\n';
+      for (let i = 0; i < pHdrs.length; i++) o += '\t\t        <td align="center">' + ga_esc(pit[i]||'') + '</td>\r\n';
+      o += '\t        </tr>\r\n\r\n';
+    }
+    o += '\t\t</table>\r\n\r\n';
+  }
+
+  if (d.finalTires || d.finalFuel) {
+    o += '        <br>\r\n        <table>\r\n';
+    if (d.finalTires) o += '\t        <tr>\r\n\t\t        <td nowrap><b>Etat des pneus à la fin de la course (%):</b></td>\r\n\t\t        <td align="left">' + ga_esc(d.finalTires) + '</td>\r\n\t        </tr>\r\n\t        <tr><td colspan="2"></td></tr>\r\n';
+    if (d.finalFuel)  o += '\t        <tr>\r\n\t\t        <td nowrap><b>Carburant restant en fin de course (litres):</b></td>\r\n\t\t        <td align="left">' + ga_esc(d.finalFuel) + '</td>\r\n\t        </tr>\r\n';
+    o += '        </table><br>\r\n        ';
+  }
+
+  return o;
+}
+
+function ga_downloadXls() {
+  if (!ga_raceData) { ga_showStatus('err', 'Aucune donnée.'); return; }
+  const content = ga_generateXlsHtml();
+  const blob = new Blob(['\uFEFF' + content], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  let fname = 'analyse_course.xls';
+  if (ga_raceData.title) fname = ga_raceData.title.replace(/[^a-zA-Z0-9_\-. ]/g,'_').replace(/\s+/g,'_') + '.xls';
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+}
 
 </script>
 </body>
