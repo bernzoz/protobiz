@@ -1388,9 +1388,9 @@ function parseVal(v) {
 ══════════════════════════════════════ */
 
 const SPONSORS_LIST = [
-  { id: 'bibingomme',        label: 'Bibingomme',          effect: null, effectLabel: '1 jeu de marque Toyo tous les 2 rallyes' },
-  { id: 'acero',             label: 'ACERO',                effect: 'xp2x',       effectLabel: 'Double le gain d\'xp auto et pilote' },
-  { id: 'agent-commercial',  label: 'Agent commercial',    effect: null, effectLabel: 'désactive toutes les clauses de vos sponsors' },
+  { id: 'bibingomme',        label: 'Bibingomme', effect: null, effectLabel: '1 jeu de marque Toyo tous les 2 rallyes' },
+  { id: 'acero',             label: 'ACERO', logo: 'logos/acero.png', effect: 'xp2x',       effectLabel: 'Double le gain d\'xp auto et pilote' },
+  { id: 'agent-commercial',  label: 'Agent commercial', logo: 'logos/agent_commercial.png',    effect: null, effectLabel: 'désactive toutes les clauses de vos sponsors' },
   { id: 'ambulances',        label: 'Ambulances ÇaUrge',   effect: null, effectLabel: '488 €ᴿᴳ par semaine' },
   { id: 'assistance-pro',    label: 'Assistance pro',      effect: 'assist-half', effectLabel: 'Divise la durée des actions d\'assistance par deux' },
   { id: 'bimas',             label: 'Bimas Automobile',    effect: 'wear-half',   effectLabel: 'Usure auto et pneus deux fois plus lente' },
@@ -1515,14 +1515,17 @@ function renderSuperCalcSetup() {
     <div class="calc-card fadein fadein-d2" style="margin-bottom:1.4rem;">
       <div class="brand-grid" id="sc-sponsor-grid" style="grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));">
         ${SPONSORS_LIST.map(s => `
-          <div class="brand-btn ${c.sponsors.includes(s.id) ? 'selected' : ''}"
-               id="sc-sponsor-${s.id}"
-               onclick="sc_toggleSponsor('${s.id}')"
-               style="padding:.8rem .6rem;">
-            <span style="font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.06em;text-align:center;">${s.label}</span>
-            ${s.effectLabel ? `<span style="font-size:.62rem;color:var(--muted);text-align:center;line-height:1.3;">${s.effectLabel}</span>` : ''}
-          </div>
-        `).join('')}
+  <div class="brand-btn ${c.sponsors.includes(s.id) ? 'selected' : ''}"
+       id="sc-sponsor-${s.id}"
+       onclick="sc_toggleSponsor('${s.id}')"
+       style="padding:.8rem .6rem;">
+    ${s.logo ? `<img src="${s.logo}" alt="${s.label}"
+        style="height:34px;max-width:100%;object-fit:contain;margin-bottom:.3rem;"
+        onerror="this.style.display='none'" />` : ''}
+    <span style="font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.06em;text-align:center;">${s.label}</span>
+    ${s.effectLabel ? `<span style="font-size:.62rem;color:var(--muted);text-align:center;line-height:1.3;">${s.effectLabel}</span>` : ''}
+  </div>
+`).join('')}
       </div>
       <div id="sc-sponsor-error" style="color:var(--red);font-size:.8rem;margin-top:.8rem;display:none;">Vous ne pouvez sélectionner que 2 sponsors maximum.</div>
     </div>
