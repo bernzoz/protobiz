@@ -4959,9 +4959,37 @@ function toolGproMarcheHTML() {
   </div>`;
 }
 
+/* ─── STOCKAGE IndexedDB (quota bien plus large que localStorage) ─── */
+function marche_idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ProtobizMarcheDB', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('cache');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function marche_idbGet(key) {
+  const db = await marche_idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('cache', 'readonly');
+    const req = tx.objectStore('cache').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function marche_idbSet(key, value) {
+  const db = await marche_idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('cache', 'readwrite');
+    tx.objectStore('cache').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+  
 async function initGproMarche() {
   try {
-    const cached = JSON.parse(localStorage.getItem(MARCHE_CACHE_KEY) || 'null');
+    const cached = await marche_idbGet(MARCHE_CACHE_KEY);
     if (cached && (Date.now() - cached.fetchedAt) < MARCHE_CACHE_MS) {
       gproMarche.drivers = cached.drivers;
       gproMarche.lastUpdated = cached.lastUpdated;
@@ -4985,11 +5013,11 @@ async function marche_fetch() {
     gproMarche.drivers = data.drivers || [];
     gproMarche.lastUpdated = data['Last updated'] || null;
     try {
-      localStorage.setItem(MARCHE_CACHE_KEY, JSON.stringify({
+      await marche_idbSet(MARCHE_CACHE_KEY, {
         fetchedAt: Date.now(), drivers: gproMarche.drivers, lastUpdated: gproMarche.lastUpdated
-      }));
+      });
     } catch(cacheErr) {
-      console.warn('Cache local impossible (trop volumineux), le marché sera re-téléchargé à chaque visite.', cacheErr);
+      console.warn('Cache IndexedDB impossible.', cacheErr);
     }
   } catch(e) {
     gproMarche.error = e.message;
