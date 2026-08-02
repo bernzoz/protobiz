@@ -907,6 +907,58 @@ function waitForCarDegradation(cb) {
 }
 // ─── FIN DÉGRADATION VOITURE ───
 
+// ─── COEFFICIENTS CARBURANT (chargés depuis fuel_consumption.csv) ───
+let fuelCoeffs = {
+  data: null,     // { 'Très basse': { 'Sec': [8 valeurs], 'Pluie': [8 valeurs] }, ... }
+  loaded: false,
+  loading: false,
+  error: null
+};
+
+async function loadFuelCoeffs() {
+  if (fuelCoeffs.loaded || fuelCoeffs.loading) return;
+  fuelCoeffs.loading = true;
+  try {
+    const resp = await fetch('/data/fuel_consumption.csv');
+    if (!resp.ok) throw new Error('CSV introuvable');
+    const text = await resp.text();
+    fuelCoeffs.data = parseFuelCSV(text);
+    fuelCoeffs.loaded = true;
+    fuelCoeffs.error = null;
+  } catch (e) {
+    fuelCoeffs.error = e.message;
+    console.error('Erreur chargement fuel_consumption.csv :', e);
+  } finally {
+    fuelCoeffs.loading = false;
+  }
+}
+
+function parseFuelCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  const data = {};
+  // ligne 0 = header, on l'ignore
+  for (let i = 1; i < lines.length; i++) {
+    // split respectant les guillemets (les valeurs sont entre "")
+    const cols = lines[i].match(/(".*?"|[^,]+)(?=,|$)/g).map(c => c.replace(/^"|"$/g, ''));
+    const level = cols[0].trim();
+    const weather = cols[1].trim();
+    const values = cols.slice(2).map(v => parseFloat(v.trim().replace(',', '.')));
+    if (!data[level]) data[level] = {};
+    data[level][weather] = values;
+  }
+  return data;
+}
+
+function waitForFuelCoeffs(cb) {
+  if (fuelCoeffs.loaded || fuelCoeffs.error) { cb(); return; }
+  const check = setInterval(() => {
+    if (fuelCoeffs.loaded || fuelCoeffs.error) {
+      clearInterval(check);
+      cb();
+    }
+  }, 150);
+}
+
 const BRANDS = ['Dmack','Hankook','Kumho','Michelin','Pirelli','Toyo','Yokohama'];
 const ATTACKS = ['Attaque Poussee','Attaque Normale','Grosse Attaque','Calme','Ramener Auto','Tres Grosse Attaque'];
 const ATTACK_LABELS = {
@@ -3381,56 +3433,6 @@ function selectMeteo(id) {
 // fuel_consumption.csv data embedded as JS object
 // Keys: [consumptionLevel][weather] → array of 8 coefficients (niveau 1..8)
 // ─── COEFFICIENTS CARBURANT (chargés depuis fuel_consumption.csv) ───
-let fuelCoeffs = {
-  data: null,     // { 'Très basse': { 'Sec': [8 valeurs], 'Pluie': [8 valeurs] }, ... }
-  loaded: false,
-  loading: false,
-  error: null
-};
-
-async function loadFuelCoeffs() {
-  if (fuelCoeffs.loaded || fuelCoeffs.loading) return;
-  fuelCoeffs.loading = true;
-  try {
-    const resp = await fetch('/data/fuel_consumption.csv');
-    if (!resp.ok) throw new Error('CSV introuvable');
-    const text = await resp.text();
-    fuelCoeffs.data = parseFuelCSV(text);
-    fuelCoeffs.loaded = true;
-    fuelCoeffs.error = null;
-  } catch (e) {
-    fuelCoeffs.error = e.message;
-    console.error('Erreur chargement fuel_consumption.csv :', e);
-  } finally {
-    fuelCoeffs.loading = false;
-  }
-}
-
-function parseFuelCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  const data = {};
-  // ligne 0 = header, on l'ignore
-  for (let i = 1; i < lines.length; i++) {
-    // split respectant les guillemets (les valeurs sont entre "")
-    const cols = lines[i].match(/(".*?"|[^,]+)(?=,|$)/g).map(c => c.replace(/^"|"$/g, ''));
-    const level = cols[0].trim();
-    const weather = cols[1].trim();
-    const values = cols.slice(2).map(v => parseFloat(v.trim().replace(',', '.')));
-    if (!data[level]) data[level] = {};
-    data[level][weather] = values;
-  }
-  return data;
-}
-
-function waitForFuelCoeffs(cb) {
-  if (fuelCoeffs.loaded || fuelCoeffs.error) { cb(); return; }
-  const check = setInterval(() => {
-    if (fuelCoeffs.loaded || fuelCoeffs.error) {
-      clearInterval(check);
-      cb();
-    }
-  }, 150);
-}
 
 const FUEL_LEVEL_COLORS = {
   "Très basse": { color: "#2ecc71", badge: "rgba(46,204,113,.15)",  border: "rgba(46,204,113,.4)"  },
