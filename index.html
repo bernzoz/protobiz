@@ -1015,6 +1015,9 @@ const GAMES = {
         { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" },
         { id: 'gpro-analyse', icon: '📈', label: "Analyse" }
       ]},
+      { title: 'Marché', items: [
+        { id: 'gpro-marche', icon: '🏪', label: 'Marché Pilote' }
+      ]},
       { title: 'Bientôt disponible', items: [
         { id: 'gpro-soon2', icon: '📊', label: 'Autres outils', soon: true }
       ]}
@@ -1184,7 +1187,10 @@ function renderTool() {
     topbarTool.textContent = "Analyse de course";
     content.innerHTML = toolGproAnalyseHTML();
     initGproAnalyse();
-  }
+  } else if (currentTool === 'gpro-marche') {
+  topbarTool.textContent = "Marché Pilote";
+  content.innerHTML = toolGproMarcheHTML();
+  initGproMarche();
 }
 
 /* ══════════════════════════════════════
@@ -4913,6 +4919,172 @@ function ga_downloadXls() {
   URL.revokeObjectURL(url);
 }
 
+/* ══════════════════════════════════════
+   OUTIL GPRO : MARCHÉ PILOTE
+══════════════════════════════════════ */
+
+const MARCHE_CACHE_KEY = 'gproMarcheCache_v1';
+const MARCHE_CACHE_MS = 60 * 60 * 1000; // 1h
+
+let gproMarche = {
+  drivers: [], lastUpdated: null, loading: false, error: null,
+  page: 1, pageSize: 50, sortKey: 'OA', sortDir: 'desc',
+  filters: { oaMin:0, oaMax:999, nat:'', name:'', CON:0,TAL:0,AGG:0,EXP:0,TEI:0,STA:0,CHA:0,MOT:0,REP:0,
+             weiMax:100, ageMax:99, salMin:0, offMax:99 }
+};
+
+const MARCHE_OA_RANGES = [
+  {label:'60-',min:0,max:60},{label:'61-70',min:61,max:70},{label:'71-77',min:71,max:77},
+  {label:'78-85',min:78,max:85},{label:'86-100',min:86,max:100},{label:'101-110',min:101,max:110},
+  {label:'111-125',min:111,max:125},{label:'126-135',min:126,max:135},{label:'136-150',min:136,max:150},
+  {label:'151-160',min:151,max:160},{label:'161-170',min:161,max:170},{label:'171-180',min:171,max:180},
+  {label:'181-190',min:181,max:190},{label:'191-200',min:191,max:200},{label:'201+',min:201,max:9999}
+];
+
+const MARCHE_SKILLS = [
+  {key:'CON',label:'Con.'},{key:'TAL',label:'Tal.'},{key:'AGG',label:'Agr.'},{key:'EXP',label:'Exp.'},
+  {key:'TEI',label:'Tech.'},{key:'STA',label:'End.'},{key:'CHA',label:'Cha.'},{key:'MOT',label:'Mot.'},{key:'REP',label:'Rép.'}
+];
+
+function toolGproMarcheHTML() {
+  return `
+  <div class="tool-panel" style="max-width:98%;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Marché Pilote</h2>
+      <p>Marché complet, mis à jour toutes les heures. Filtres/tris illimités, sans clé API.</p>
+    </div>
+    <div id="marche-status" style="margin-bottom:1rem;font-size:.82rem;color:var(--muted);"></div>
+    <div id="marche-content"></div>
+  </div>`;
+}
+
+async function initGproMarche() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(MARCHE_CACHE_KEY) || 'null');
+    if (cached && (Date.now() - cached.fetchedAt) < MARCHE_CACHE_MS) {
+      gproMarche.drivers = cached.drivers;
+      gproMarche.lastUpdated = cached.lastUpdated;
+      marche_render();
+      return;
+    }
+  } catch(e) {}
+  await marche_fetch();
+  marche_render();
+}
+
+async function marche_fetch() {
+  gproMarche.loading = true; gproMarche.error = null; marche_render();
+  try {
+    const resp = await fetch('https://gpro.net/GetMarketFile.asp?market=drivers&type=json');
+    if (!resp.ok) throw new Error('Erreur réseau ' + resp.status);
+    const buf = await resp.arrayBuffer();
+    const stream = new Response(buf).body.pipeThrough(new DecompressionStream('gzip'));
+    const text = await new Response(stream).text();
+    const data = JSON.parse(text);
+    gproMarche.drivers = data.drivers || [];
+    gproMarche.lastUpdated = data['Last updated'] || null;
+    localStorage.setItem(MARCHE_CACHE_KEY, JSON.stringify({
+      fetchedAt: Date.now(), drivers: gproMarche.drivers, lastUpdated: gproMarche.lastUpdated
+    }));
+  } catch(e) {
+    gproMarche.error = e.message;
+  } finally {
+    gproMarche.loading = false;
+  }
+}
+
+function marche_setFilter(key, val) { gproMarche.filters[key] = val; gproMarche.page = 1; marche_render(); }
+function marche_setSort(key) {
+  if (gproMarche.sortKey === key) gproMarche.sortDir = gproMarche.sortDir === 'asc' ? 'desc' : 'asc';
+  else { gproMarche.sortKey = key; gproMarche.sortDir = 'desc'; }
+  marche_render();
+}
+function marche_gotoPage(p) { gproMarche.page = p; marche_render(); }
+
+function marche_getFiltered() {
+  const f = gproMarche.filters;
+  let list = gproMarche.drivers.filter(d => {
+    if (d.OA < f.oaMin || d.OA > f.oaMax) return false;
+    if (f.name && !d.NAME.toLowerCase().includes(f.name.toLowerCase())) return false;
+    for (const s of MARCHE_SKILLS) if (f[s.key] && d[s.key] < f[s.key]) return false;
+    if (d.WEI > f.weiMax) return false;
+    if (d.AGE > f.ageMax) return false;
+    if (d.SAL < f.salMin) return false;
+    if (d.OFF > f.offMax) return false;
+    return true;
+  });
+  list.sort((a,b) => (a[gproMarche.sortKey]-b[gproMarche.sortKey]) * (gproMarche.sortDir==='asc'?1:-1));
+  return list;
+}
+
+function marche_render() {
+  const statusEl = document.getElementById('marche-status');
+  const contentEl = document.getElementById('marche-content');
+  if (!statusEl || !contentEl) return;
+
+  if (gproMarche.loading) {
+    statusEl.innerHTML = `⏳ Chargement du marché (~27000 pilotes)...`;
+    contentEl.innerHTML = '';
+    return;
+  }
+  statusEl.innerHTML = gproMarche.error
+    ? `<span style="color:var(--red);">⚠️ ${gproMarche.error}</span>`
+    : `${gproMarche.drivers.length} pilotes en cache · MAJ GPRO : <strong style="color:#3b9ef5;">${gproMarche.lastUpdated||'?'}</strong>
+       <button class="btn-reset-setup" style="margin-left:1rem;padding:.3rem .8rem;font-size:.72rem;" onclick="marche_fetch().then(marche_render)">🔄 Actualiser</button>`;
+
+  const filtered = marche_getFiltered();
+  const pageCount = Math.max(1, Math.ceil(filtered.length / gproMarche.pageSize));
+  if (gproMarche.page > pageCount) gproMarche.page = pageCount;
+  const start = (gproMarche.page - 1) * gproMarche.pageSize;
+  const pageRows = filtered.slice(start, start + gproMarche.pageSize);
+  const f = gproMarche.filters;
+  const skillOptions = (key) => `<option value="0">Tout</option>` +
+    [10,20,30,40,50,60,70,80,90].map(v => `<option value="${v}" ${f[key]==v?'selected':''}>${v}+</option>`).join('');
+
+  contentEl.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
+      ${MARCHE_OA_RANGES.map(r => `<button class="btn-reset-setup" style="padding:.4rem .8rem;font-size:.78rem;${f.oaMin===r.min&&f.oaMax===r.max?'border-color:#3b9ef5;color:#3b9ef5;':''}" onclick="marche_setFilter('oaMin',${r.min});marche_setFilter('oaMax',${r.max})">${r.label}</button>`).join('')}
+      <button class="btn-reset-setup" style="padding:.4rem .8rem;font-size:.78rem;" onclick="marche_setFilter('oaMin',0);marche_setFilter('oaMax',999)">Tout</button>
+    </div>
+    <div class="calc-card" style="margin-bottom:1rem;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;">
+        ${MARCHE_SKILLS.map(s => `<div class="field" style="margin:0;"><label>${s.label}</label><select onchange="marche_setFilter('${s.key}',+this.value)">${skillOptions(s.key)}</select></div>`).join('')}
+        <div class="field" style="margin:0;"><label>Âge max</label><input type="number" value="${f.ageMax}" oninput="marche_setFilter('ageMax',+this.value||99)" /></div>
+        <div class="field" style="margin:0;"><label>Poids max</label><input type="number" value="${f.weiMax}" oninput="marche_setFilter('weiMax',+this.value||100)" /></div>
+        <div class="field" style="margin:0;"><label>Salaire min.</label><input type="number" value="${f.salMin}" step="1000" oninput="marche_setFilter('salMin',+this.value||0)" /></div>
+        <div class="field" style="margin:0;"><label>Nom</label><input type="text" value="${f.name}" placeholder="Rechercher..." oninput="marche_setFilter('name',this.value)" /></div>
+      </div>
+    </div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem;">${filtered.length} pilotes correspondants</div>
+    <div class="calc-card" style="padding:0;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem;white-space:nowrap;">
+        <thead><tr>
+          ${[['NAME','Nom'],['NAT','Nat'],['OA','OA'],['CON','Con.'],['TAL','Tal.'],['AGG','Agr.'],['EXP','Exp.'],['TEI','Tech.'],['STA','End.'],['CHA','Cha.'],['MOT','Mot.'],['REP','Rép.'],['WEI','Poids'],['AGE','Âge'],['SAL','Salaire'],['OFF','Off.']]
+            .map(([k,l]) => `<th style="cursor:pointer;padding:.5rem .7rem;text-align:center;background:rgba(59,158,245,.1);color:#3b9ef5;font-family:'Rajdhani',sans-serif;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;" onclick="marche_setSort('${k}')">${l} ${gproMarche.sortKey===k?(gproMarche.sortDir==='asc'?'▲':'▼'):''}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${pageRows.map(d => `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:.4rem .7rem;">${d.NAME}</td><td style="padding:.4rem .7rem;text-align:center;">${d.NAT}</td>
+            <td style="padding:.4rem .7rem;text-align:center;color:var(--accent2);font-weight:700;">${d.OA}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.CON}</td><td style="padding:.4rem .7rem;text-align:center;">${d.TAL}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.AGG}</td><td style="padding:.4rem .7rem;text-align:center;">${d.EXP}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.TEI}</td><td style="padding:.4rem .7rem;text-align:center;">${d.STA}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.CHA}</td><td style="padding:.4rem .7rem;text-align:center;">${d.MOT}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.REP}</td><td style="padding:.4rem .7rem;text-align:center;">${d.WEI}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.AGE}</td><td style="padding:.4rem .7rem;text-align:center;">${(d.SAL||0).toLocaleString()}</td>
+            <td style="padding:.4rem .7rem;text-align:center;">${d.OFF}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem;margin-top:1rem;">
+      <button class="btn-reset-setup" ${gproMarche.page<=1?'disabled':''} onclick="marche_gotoPage(${gproMarche.page-1})">← Précédent</button>
+      <span style="font-size:.82rem;color:var(--muted);">Page ${gproMarche.page} / ${pageCount}</span>
+      <button class="btn-reset-setup" ${gproMarche.page>=pageCount?'disabled':''} onclick="marche_gotoPage(${gproMarche.page+1})">Suivant →</button>
+    </div>
+  `;
+}
+  
 </script>
 </body>
 </html>
