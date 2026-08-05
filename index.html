@@ -1945,9 +1945,13 @@ function sc_recompute() {
   if (tireAvailable) activeTrain.usureActuelle = Math.min(100, activeTrain.usureActuelle + tireDelta);
   if (carAvailable) carUsure = Math.min(100, carUsure + carDelta);
 
-  // ← AJOUT : gain d'xp pilote au km, doublé par Acero
+ // ← AJOUT : gain d'xp pilote au km, doublé par Acero
   const xpGain = (item.km / 10) * (aceroActive ? 2 : 1);
   if (day.surface === 'Asphalte') xpAsphalte += xpGain; else xpTerreNeige += xpGain;
+
+  // ← AJOUT : gain de confiance selon le type d'attaque
+  const CONFIANCE_GAIN = { 'Tres Grosse Attaque': 3, 'Grosse Attaque': 2, 'Attaque Poussee': 1 };
+  confiance = Math.min(100, confiance + (CONFIANCE_GAIN[item.attack] || 0));
 
   day.computedItems.push({
     type: 'speciale', km: item.km, attack: item.attack,
@@ -1962,6 +1966,8 @@ function sc_recompute() {
     day.finalTireUsure = activeTrain.usureActuelle;
     day.finalActiveTrainId = activeTrain.id;
   });
+
+  confiance = Math.min(100, confiance + 1); // Rallye terminé : +1
 
   superCalc.result = { carUsure, xpVoiture, xpAsphalte, xpTerreNeige, confiance };
 }
@@ -2183,9 +2189,11 @@ function sc_showFinalResult() {
   const r = superCalc.result;
   const c = superCalc.config;
 
-  const gainXpVoiture   = r.xpVoiture - c.xpVoiture;
-  const gainXpAsphalte  = r.xpAsphalte - c.xpAsphalte;
-  const gainXpTerre     = r.xpTerreNeige - c.xpTerreNeige;
+  const round1 = v => Math.round(v * 10) / 10;
+  const rXpVoiture = round1(r.xpVoiture), rXpAsphalte = round1(r.xpAsphalte), rXpTerre = round1(r.xpTerreNeige);
+  const gainXpVoiture   = round1(r.xpVoiture - c.xpVoiture);
+  const gainXpAsphalte  = round1(r.xpAsphalte - c.xpAsphalte);
+  const gainXpTerre     = round1(r.xpTerreNeige - c.xpTerreNeige);
   const gainConfiance   = r.confiance - c.confiance;
   const gainUsureVoit   = r.carUsure - c.usureInitiale;
 
@@ -2232,17 +2240,17 @@ const tireRecapHTML = superCalc.trains.map(train => {
       </div>
       <div class="calc-card" style="text-align:center;">
         <div class="card-title" style="justify-content:center;">XP Voiture</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#3b9ef5;">${r.xpVoiture}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#3b9ef5;">${rXpVoiture}</div>
         <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpVoiture} gagné</div>
       </div>
       <div class="calc-card" style="text-align:center;">
         <div class="card-title" style="justify-content:center;">XP Asphalte</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:var(--accent2);">${r.xpAsphalte}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:var(--accent2);">${rXpAsphalte}</div>
         <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpAsphalte} gagné</div>
       </div>
       <div class="calc-card" style="text-align:center;">
         <div class="card-title" style="justify-content:center;">XP Terre/Neige</div>
-        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#e67e22;">${r.xpTerreNeige}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:#e67e22;">${rXpTerre}</div>
         <div style="font-size:.72rem;color:#2ecc71;margin-top:.3rem;">+${gainXpTerre} gagné</div>
       </div>
     </div>
