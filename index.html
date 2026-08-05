@@ -1948,6 +1948,7 @@ function sc_recompute() {
  // ← AJOUT : gain d'xp pilote au km, doublé par Acero
   const xpGain = (item.km / 10) * (aceroActive ? 2 : 1);
   if (day.surface === 'Asphalte') xpAsphalte += xpGain; else xpTerreNeige += xpGain;
+  xpVoiture += xpGain; // l'xp voiture se gagne pareil, quelle que soit la surface
 
   // ← AJOUT : gain de confiance selon le type d'attaque
   const CONFIANCE_GAIN = { 'Tres Grosse Attaque': 3, 'Grosse Attaque': 2, 'Attaque Poussee': 1 };
