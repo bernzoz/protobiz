@@ -4939,7 +4939,12 @@ const MARCHE_CACHE_MS = 60 * 60 * 1000; // 1h
 let gproMarche = {
   drivers: [], lastUpdated: null, loading: false, error: null,
   page: 1, pageSize: 50, sortKey: 'OA', sortDir: 'desc',
-  filters: { oaMin:0, oaMax:999, nat:'', name:'', CON:0,TAL:0,AGG:0,EXP:0,TEI:0,STA:0,CHA:0,MOT:0,REP:0,
+  filters: { oaMin:0, oaMax:999, nat:'', name:'',
+             CONmin:null, CONmax:null, TALmin:null, TALmax:null,
+             AGGmin:null, AGGmax:null, EXPmin:null, EXPmax:null,
+             TEImin:null, TEImax:null, STAmin:null, STAmax:null,
+             CHAmin:null, CHAmax:null, MOTmin:null, MOTmax:null,
+             REPmin:null, REPmax:null,
              weiMax:100, ageMax:99, salMin:0, offMax:99 }
 };
 
@@ -5035,7 +5040,12 @@ async function marche_fetch() {
   }
 }
 
-function marche_setFilter(key, val) { gproMarche.filters[key] = val; gproMarche.page = 1; marche_render(); }
+function marche_setFilter(key, val) {
+  if (val === '' || val === null || isNaN(val)) val = null;
+  gproMarche.filters[key] = val;
+  gproMarche.page = 1;
+  marche_render();
+}
 function marche_setSort(key) {
   if (gproMarche.sortKey === key) gproMarche.sortDir = gproMarche.sortDir === 'asc' ? 'desc' : 'asc';
   else { gproMarche.sortKey = key; gproMarche.sortDir = 'desc'; }
@@ -5048,7 +5058,11 @@ function marche_getFiltered() {
   let list = gproMarche.drivers.filter(d => {
     if (d.OA < f.oaMin || d.OA > f.oaMax) return false;
     if (f.name && !d.NAME.toLowerCase().includes(f.name.toLowerCase())) return false;
-    for (const s of MARCHE_SKILLS) if (f[s.key] && d[s.key] < f[s.key]) return false;
+    for (const s of MARCHE_SKILLS) {
+  const mn = f[s.key + 'min'], mx = f[s.key + 'max'];
+  if (mn !== null && d[s.key] < mn) return false;
+  if (mx !== null && d[s.key] > mx) return false;
+}
     if (d.WEI > f.weiMax) return false;
     if (d.AGE > f.ageMax) return false;
     if (d.SAL < f.salMin) return false;
@@ -5080,8 +5094,6 @@ function marche_render() {
   const start = (gproMarche.page - 1) * gproMarche.pageSize;
   const pageRows = filtered.slice(start, start + gproMarche.pageSize);
   const f = gproMarche.filters;
-  const skillOptions = (key) => `<option value="0">Tout</option>` +
-    [10,20,30,40,50,60,70,80,90].map(v => `<option value="${v}" ${f[key]==v?'selected':''}>${v}+</option>`).join('');
 
   contentEl.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
@@ -5090,7 +5102,18 @@ function marche_render() {
     </div>
     <div class="calc-card" style="margin-bottom:1rem;">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.8rem;">
-        ${MARCHE_SKILLS.map(s => `<div class="field" style="margin:0;"><label>${s.label}</label><select onchange="marche_setFilter('${s.key}',+this.value)">${skillOptions(s.key)}</select></div>`).join('')}
+        ${MARCHE_SKILLS.map(s => `
+  <div class="field" style="margin:0;">
+    <label>${s.label}</label>
+    <div style="display:flex;gap:.3rem;">
+      <input type="number" placeholder="Min" value="${f[s.key+'min'] ?? ''}"
+        style="width:50%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .4rem;color:var(--text);font-size:.85rem;-moz-appearance:textfield;"
+        oninput="marche_setFilter('${s.key}min', this.value===''?null:+this.value)" />
+      <input type="number" placeholder="Max" value="${f[s.key+'max'] ?? ''}"
+        style="width:50%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .4rem;color:var(--text);font-size:.85rem;-moz-appearance:textfield;"
+        oninput="marche_setFilter('${s.key}max', this.value===''?null:+this.value)" />
+    </div>
+  </div>`).join('')}
         <div class="field" style="margin:0;"><label>Âge max</label><input type="number" value="${f.ageMax}" oninput="marche_setFilter('ageMax',+this.value||99)" /></div>
         <div class="field" style="margin:0;"><label>Poids max</label><input type="number" value="${f.weiMax}" oninput="marche_setFilter('weiMax',+this.value||100)" /></div>
         <div class="field" style="margin:0;"><label>Salaire min.</label><input type="number" value="${f.salMin}" step="1000" oninput="marche_setFilter('salMin',+this.value||0)" /></div>
