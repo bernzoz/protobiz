@@ -4945,7 +4945,7 @@ let gproMarche = {
              TEImin:null, TEImax:null, STAmin:null, STAmax:null,
              CHAmin:null, CHAmax:null, MOTmin:null, MOTmax:null,
              REPmin:null, REPmax:null,
-             weiMax:100, ageMax:99, salMin:0, offMax:99 }
+             weiMax:100, ageMax:99, salMin:0, salMax:null, offMax:99, noOffers:false }
 };
 
 const MARCHE_OA_RANGES = [
@@ -5066,7 +5066,9 @@ function marche_getFiltered() {
     if (d.WEI > f.weiMax) return false;
     if (d.AGE > f.ageMax) return false;
     if (d.SAL < f.salMin) return false;
+    if (f.salMax !== null && d.SAL > f.salMax) return false;
     if (d.OFF > f.offMax) return false;
+    if (f.noOffers && d.OFF >= 1) return false;
     return true;
   });
   list.sort((a,b) => (a[gproMarche.sortKey]-b[gproMarche.sortKey]) * (gproMarche.sortDir==='asc'?1:-1));
@@ -5117,7 +5119,14 @@ function marche_render() {
         <div class="field" style="margin:0;"><label>Âge max</label><input type="number" value="${f.ageMax}" oninput="marche_setFilter('ageMax',+this.value||99)" /></div>
         <div class="field" style="margin:0;"><label>Poids max</label><input type="number" value="${f.weiMax}" oninput="marche_setFilter('weiMax',+this.value||100)" /></div>
         <div class="field" style="margin:0;"><label>Salaire min.</label><input type="number" value="${f.salMin}" step="1000" oninput="marche_setFilter('salMin',+this.value||0)" /></div>
+        <div class="field" style="margin:0;"><label>Salaire max.</label><input type="number" placeholder="Illimité" value="${f.salMax ?? ''}" step="1000" oninput="marche_setFilter('salMax', this.value===''?null:+this.value)" /></div>
         <div class="field" style="margin:0;"><label>Nom</label><input type="text" value="${f.name}" placeholder="Rechercher..." oninput="marche_setFilter('name',this.value)" /></div>
+        <div class="field" style="margin:0;display:flex;align-items:flex-end;">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+            <input type="checkbox" ${f.noOffers?'checked':''} onchange="marche_setFilter('noOffers', this.checked)" style="width:16px;height:16px;cursor:pointer;" />
+            <span>Sans offre en cours</span>
+          </label>
+        </div>
       </div>
     </div>
     <div style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem;">${filtered.length} pilotes correspondants</div>
