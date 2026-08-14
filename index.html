@@ -5274,6 +5274,18 @@ function marche_render() {
 
 let gproDatas = { query: '', selectedIdx: null };
 
+function gproDatas_slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // enlève les accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+function gproDatas_trackId(t) {
+  return gproDatas_slugify(t.pays) + '-' + gproDatas_slugify(t.name);
+}
+  
 function toolGproDatasHTML() {
   return `
   <div class="tool-panel" style="max-width:95%;">
@@ -5296,6 +5308,8 @@ function toolGproDatasHTML() {
     </div>
 
     <div id="gd-circuit-info" style="display:none;margin-bottom:1.4rem;"></div>
+
+    <div id="gd-upload-zone" style="display:none;margin-bottom:1.4rem;"></div>
 
     <div id="gd-analyses-zone"></div>
   </div>`;
@@ -5362,8 +5376,29 @@ function gproDatas_selectCircuit(idx) {
   info.innerHTML = gproDatas_buildCircuitInfoHTML(t);
 
   // Étape 4 : ici viendra le chargement/upload des analyses liées à ce circuit
+  const upZone = document.getElementById('gd-upload-zone');
+  if (upZone) {
+    upZone.style.display = 'block';
+    upZone.innerHTML = gproDatas_buildUploadHTML();
+  }
+  gproDatas_loadAnalyses(trackId);
+}
+
+async function gproDatas_loadAnalyses(trackId) {
   const zone = document.getElementById('gd-analyses-zone');
-  if (zone) zone.innerHTML = `<div class="no-data-msg">Analyses — à venir (étape 4).</div>`;
+  if (!zone) return;
+  zone.innerHTML = `<div class="no-data-msg">⏳ Chargement des analyses…</div>`;
+  try {
+    const resp = await fetch(`/datas/${trackId}`);
+    if (!resp.ok) throw new Error('Erreur serveur ' + resp.status);
+    const analyses = await resp.json();
+    gproDatas.analyses = analyses; // stocké pour l'étape 5
+    zone.innerHTML = analyses.length
+      ? `<div class="no-data-msg" style="font-style:normal;color:var(--text);">📊 ${analyses.length} analyse${analyses.length>1?'s':''} enregistrée${analyses.length>1?'s':''} pour ce circuit.</div>`
+      : `<div class="no-data-msg">Aucune analyse enregistrée pour ce circuit.</div>`;
+  } catch (e) {
+    zone.innerHTML = `<div class="no-data-msg" style="color:var(--red);font-style:normal;">⚠️ Impossible de charger les analyses : ${e.message}</div>`;
+  }
 }
 
 function gproDatas_buildCircuitInfoHTML(t) {
@@ -5401,6 +5436,93 @@ function gproDatas_buildCircuitInfoHTML(t) {
       </div>
     </div>`;
 }
+
+  function gproDatas_buildUploadHTML() {
+  return `
+    <div class="calc-card" style="border-color:rgba(232,82,42,.25);">
+      <div class="card-title"><span class="tag">📤</span> Ajouter une analyse (.xls) pour ce circuit</div>
+      <div id="gd-drop" onclick="document.getElementById('gd-file-input').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+        ondragleave="this.style.borderColor='var(--border)'"
+        ondrop="gproDatas_onDrop(event)"
+        style="border:2px dashed var(--border);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;color:var(--muted);font-size:.85rem;transition:border-color .2s;">
+        📂 Cliquez ou glissez-déposez le fichier .xls de l'analyse ici
+      </div>
+      <input type="file" id="gd-file-input" accept=".xls,.html,.htm" style="display:none;" onchange="gproDatas_onFileSelected(this.files[0])" />
+      <div id="gd-upload-status" style="margin-top:1rem;font-size:.85rem;display:none;padding:.7rem 1rem;border-radius:8px;font-weight:600;"></div>
+    </div>`;
+}
+
+function gproDatas_onDrop(e) {
+  e.preventDefault();
+  document.getElementById('gd-drop').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) gproDatas_onFileSelected(file);
+}
+
+function gproDatas_showUploadStatus(type, msg) {
+  const el = document.getElementById('gd-upload-status');
+  if (!el) return;
+  el.style.display = 'block';
+  if (type === 'ok') {
+    el.style.background = 'rgba(46,204,113,.1)'; el.style.border = '1px solid rgba(46,204,113,.3)'; el.style.color = '#2ecc71';
+  } else if (type === 'loading') {
+    el.style.background = 'rgba(59,158,245,.1)'; el.style.border = '1px solid rgba(59,158,245,.3)'; el.style.color = '#3b9ef5';
+  } else {
+    el.style.background = 'rgba(231,76,60,.1)'; el.style.border = '1px solid rgba(231,76,60,.3)'; el.style.color = '#e74c3c';
+  }
+  el.textContent = msg;
+}
+
+function gproDatas_onFileSelected(file) {
+  if (!file) return;
+  if (gproDatas.selectedIdx === null) {
+    gproDatas_showUploadStatus('err', 'Sélectionnez d\'abord un circuit.');
+    return;
+  }
+  gproDatas_showUploadStatus('loading', '⏳ Lecture du fichier…');
+
+  const reader = new FileReader();
+  reader.onload = () => gproDatas_processFileContent(reader.result);
+  reader.onerror = () => gproDatas_showUploadStatus('err', 'Impossible de lire le fichier.');
+  reader.readAsText(file, 'utf-8');
+}
+
+async function gproDatas_processFileContent(rawHtml) {
+  let parsed;
+  try {
+    parsed = ga_parseHtmlString(rawHtml); // réutilise le parseur existant tel quel
+  } catch (e) {
+    gproDatas_showUploadStatus('err', 'Erreur de parsing : ' + e.message);
+    return;
+  }
+
+  const t = tracksData.tyreDeg[gproDatas.selectedIdx];
+  const trackId = gproDatas_trackId(t);
+
+  gproDatas_showUploadStatus('loading', `✓ ${parsed.laps.length} tours extraits — sauvegarde en cours…`);
+
+  try {
+    const resp = await fetch(`/datas/${trackId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        circuitName: t.name,
+        pays: t.pays,
+        data: parsed
+      })
+    });
+
+    if (!resp.ok) throw new Error('Le serveur a répondu ' + resp.status);
+    const saved = await resp.json(); // contient id + savedAt générés par le Worker
+
+    gproDatas_showUploadStatus('ok', `✅ Analyse enregistrée pour ${t.name} (${parsed.laps.length} tours).`);
+    gproDatas_loadAnalyses(trackId);
+  } catch (e) {
+    gproDatas_showUploadStatus('err', '⚠️ Échec de la sauvegarde : ' + e.message);
+  }
+}
+
   
 </script>
 </body>
