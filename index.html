@@ -1013,7 +1013,8 @@ const GAMES = {
         { id: 'gpro-tyre-deg', icon: '🔴', label: "Dégradation pneus"     },
         { id: 'gpro-sponsors', icon: '💼', label: "Sponsors" },
         { id: 'gpro-meteo-setup', icon: '🌡️', label: "Modificateur Météo" },
-        { id: 'gpro-analyse', icon: '📈', label: "Analyse" }
+        { id: 'gpro-analyse', icon: '📈', label: "Analyse" },
+        { id: 'gpro-datas', icon: '📊', label: "Datas" }
       ]},
       { title: 'Marché', items: [
         { id: 'gpro-marche', icon: '🏪', label: 'Marché Pilote' }
@@ -1191,7 +1192,11 @@ function renderTool() {
   topbarTool.textContent = "Marché Pilote";
   content.innerHTML = toolGproMarcheHTML();
   initGproMarche();
-  }
+  } else if (currentTool === 'gpro-datas') {
+  topbarTool.textContent = "Datas";
+  content.innerHTML = toolGproDatasHTML();
+  initGproDatas();
+}
 }
 
 /* ══════════════════════════════════════
@@ -5261,6 +5266,140 @@ function marche_render() {
       <button class="btn-reset-setup" ${gproMarche.page>=pageCount?'disabled':''} onclick="marche_gotoPage(${gproMarche.page+1})">Suivant →</button>
     </div>
   `;
+}
+
+/* ══════════════════════════════════════
+   OUTIL GPRO : DATAS (recherche circuit — étape 3)
+══════════════════════════════════════ */
+
+let gproDatas = { query: '', selectedIdx: null };
+
+function toolGproDatasHTML() {
+  return `
+  <div class="tool-panel" style="max-width:95%;">
+    <div class="tool-header fadein">
+      <h2><span class="accent-bar" style="background:linear-gradient(180deg,#2980b9,#3b9ef5);"></span> Datas</h2>
+      <p>Recherchez un Grand Prix pour retrouver les caractéristiques du circuit et les analyses enregistrées.</p>
+    </div>
+
+    <div class="calc-card fadein fadein-d1" style="border-color:rgba(59,158,245,.25);margin-bottom:1.4rem;position:relative;">
+      <div class="card-title" style="color:#3b9ef5;"><span class="tag" style="background:rgba(59,158,245,.15);color:#3b9ef5;">🔍</span> Rechercher un Grand Prix</div>
+      <div class="field" style="margin:0;position:relative;">
+        <input type="text" id="gd-search" placeholder="Tapez le nom du circuit ou du pays…" autocomplete="off"
+          oninput="gproDatas_onSearch(this.value)"
+          onfocus="gproDatas_onSearch(this.value)"
+          onblur="setTimeout(()=>{const d=document.getElementById('gd-dropdown'); if(d) d.style.display='none';},150)"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;color:var(--text);font-family:'Exo 2',sans-serif;font-size:1rem;outline:none;transition:border-color .2s,box-shadow .2s;" />
+        <div id="gd-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 12px 30px rgba(0,0,0,.4);"></div>
+      </div>
+      <div id="gd-search-status" style="font-size:.78rem;color:var(--muted);margin-top:.5rem;"></div>
+    </div>
+
+    <div id="gd-circuit-info" style="display:none;margin-bottom:1.4rem;"></div>
+
+    <div id="gd-analyses-zone"></div>
+  </div>`;
+}
+
+function initGproDatas() {
+  gproDatas = { query: '', selectedIdx: null };
+  const status = document.getElementById('gd-search-status');
+  if (status) status.textContent = 'Chargement des circuits…';
+  waitForTracksData(() => {
+    if (!status) return;
+    if (tracksData.error) {
+      status.textContent = '⚠️ Erreur : ' + tracksData.error;
+      status.style.color = '#e74c3c';
+      return;
+    }
+    status.style.color = 'var(--muted)';
+    status.textContent = `${tracksData.tyreDeg.length} circuits disponibles`;
+  });
+}
+
+function gproDatas_onSearch(val) {
+  const dropdown = document.getElementById('gd-dropdown');
+  if (!dropdown || !tracksData.loaded) return;
+  gproDatas.query = val.trim().toLowerCase();
+
+  const list = tracksData.tyreDeg
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => !gproDatas.query
+      || (t.name || '').toLowerCase().includes(gproDatas.query)
+      || (t.pays || '').toLowerCase().includes(gproDatas.query))
+    .slice(0, 30);
+
+  if (list.length === 0) {
+    dropdown.innerHTML = `<div style="padding:.8rem 1rem;color:var(--muted);font-size:.85rem;font-style:italic;">Aucun circuit trouvé</div>`;
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = list.map(({ t, i }) => `
+    <div onclick="gproDatas_selectCircuit(${i})"
+         style="padding:.7rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.7rem;border-bottom:1px solid var(--border);transition:background .15s;"
+         onmouseover="this.style.background='rgba(59,158,245,.08)'" onmouseout="this.style.background='transparent'">
+      <span style="font-size:1.2rem;">${t.flag || '🏁'}</span>
+      <div>
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;color:var(--text);">${t.name}</div>
+        <div style="font-size:.72rem;color:var(--muted);">${t.pays || ''}</div>
+      </div>
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function gproDatas_selectCircuit(idx) {
+  gproDatas.selectedIdx = idx;
+  const t = tracksData.tyreDeg[idx];
+  const dropdown = document.getElementById('gd-dropdown');
+  const search = document.getElementById('gd-search');
+  if (dropdown) dropdown.style.display = 'none';
+  if (search) search.value = `${t.flag || ''} ${t.name}`.trim();
+
+  const info = document.getElementById('gd-circuit-info');
+  if (!info) return;
+  info.style.display = 'block';
+  info.innerHTML = gproDatas_buildCircuitInfoHTML(t);
+
+  // Étape 4 : ici viendra le chargement/upload des analyses liées à ce circuit
+  const zone = document.getElementById('gd-analyses-zone');
+  if (zone) zone.innerHTML = `<div class="no-data-msg">Analyses — à venir (étape 4).</div>`;
+}
+
+function gproDatas_buildCircuitInfoHTML(t) {
+  const stats = [
+    { label: '📏 Longueur course', val: t.dist + ' km', plain: true },
+    { label: '🔄 Tours',           val: t.laps,          plain: true },
+    { label: '📐 Longueur tour',   val: t.lapLen + ' km',plain: true },
+    { label: '⚡ Vitesse moy.',    val: t.vitesse,        plain: true },
+    { label: '🔩 PIT',             val: t.pit,            plain: true },
+    { label: '💪 Puissance',       val: t.puissance,     plain: true },
+    { label: '🎮 Maniabilité',     val: t.maniab,        plain: true },
+    { label: '🚀 Accélération',    val: t.accel,         plain: true },
+    { label: '⬇️ Force d\'appui', val: t.appui,         type: 'appui' },
+    { label: '🏁 Dépassement',     val: t.depasse,       type: 'depasse' },
+    { label: '🔧 Suspension',      val: t.suspension,    type: 'suspension' },
+    { label: '⛽ Carburant',       val: t.carburant,     type: 'carburant' },
+    { label: '🔴 Usure pneus',     val: t.usurePneus,   type: 'usurePneus' },
+    { label: '🟢 Grip',            val: t.grip,          type: 'grip' },
+  ];
+  return `
+    <div class="calc-card" style="border-color:rgba(59,158,245,.35);background:rgba(59,158,245,.04);padding:1.4rem 1.6rem;">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;">${t.flag || ''}</span>
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);">${t.name}</div>
+          <div style="font-size:.78rem;color:var(--muted);letter-spacing:.06em;">${t.pays || ''}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem 1.2rem;">
+        ${stats.map(s => `
+        <div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.35rem;">${s.label}</div>
+          <div>${s.type ? tdColorBadge(s.val, s.type) : `<span style="font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;color:var(--text);">${s.val}</span>`}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
 }
   
 </script>
