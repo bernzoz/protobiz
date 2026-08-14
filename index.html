@@ -5312,6 +5312,7 @@ function toolGproDatasHTML() {
     <div id="gd-upload-zone" style="display:none;margin-bottom:1.4rem;"></div>
 
     <div id="gd-analyses-zone"></div>
+    <div id="gd-analysis-detail" style="margin-top:1.4rem;"></div>
   </div>`;
 }
 
@@ -5386,19 +5387,199 @@ function gproDatas_selectCircuit(idx) {
 
 async function gproDatas_loadAnalyses(trackId) {
   const zone = document.getElementById('gd-analyses-zone');
+  const detail = document.getElementById('gd-analysis-detail');
   if (!zone) return;
   zone.innerHTML = `<div class="no-data-msg">⏳ Chargement des analyses…</div>`;
+  if (detail) detail.innerHTML = '';
   try {
     const resp = await fetch(`/datas/${trackId}`);
     if (!resp.ok) throw new Error('Erreur serveur ' + resp.status);
     const analyses = await resp.json();
-    gproDatas.analyses = analyses; // stocké pour l'étape 5
-    zone.innerHTML = analyses.length
-      ? `<div class="no-data-msg" style="font-style:normal;color:var(--text);">📊 ${analyses.length} analyse${analyses.length>1?'s':''} enregistrée${analyses.length>1?'s':''} pour ce circuit.</div>`
-      : `<div class="no-data-msg">Aucune analyse enregistrée pour ce circuit.</div>`;
+    // Plus récent en premier
+    analyses.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    gproDatas.analyses = analyses;
+    gproDatas.selectedAnalysisIdx = null;
+    gproDatas_renderAnalysesList();
   } catch (e) {
     zone.innerHTML = `<div class="no-data-msg" style="color:var(--red);font-style:normal;">⚠️ Impossible de charger les analyses : ${e.message}</div>`;
   }
+}
+
+function gproDatas_renderAnalysesList() {
+  const zone = document.getElementById('gd-analyses-zone');
+  if (!zone) return;
+  const analyses = gproDatas.analyses || [];
+
+  if (analyses.length === 0) {
+    zone.innerHTML = `<div class="no-data-msg">Aucune analyse enregistrée pour ce circuit.</div>`;
+    return;
+  }
+
+  zone.innerHTML = `
+    <div class="section-label">📊 ${analyses.length} analyse${analyses.length>1?'s':''} enregistrée${analyses.length>1?'s':''}</div>
+    <div style="display:flex;flex-direction:column;gap:.7rem;">
+      ${analyses.map((a, i) => {
+        const d = a.savedAt ? new Date(a.savedAt) : null;
+        const dateLabel = d ? d.toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+        const isActive = gproDatas.selectedAnalysisIdx === i;
+        return `
+        <div onclick="gproDatas_selectAnalysis(${i})"
+          style="cursor:pointer;background:${isActive?'rgba(59,158,245,.08)':'var(--surface)'};border:1px solid ${isActive?'rgba(59,158,245,.4)':'var(--border)'};border-radius:12px;padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;transition:border-color .2s,background .2s;">
+          <div>
+            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.95rem;color:${isActive?'#3b9ef5':'var(--text)'};">${a.data?.title || a.circuitName || 'Analyse'}</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:.15rem;">🕒 Enregistrée le ${dateLabel} · ${a.data?.laps?.length || 0} tours</div>
+          </div>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${isActive?'#3b9ef5':'var(--muted)'};">${isActive ? '▼ Affichée' : '▶ Voir le détail'}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function gproDatas_selectAnalysis(idx) {
+  gproDatas.selectedAnalysisIdx = idx;
+  gproDatas_renderAnalysesList(); // met à jour l'état visuel de la liste
+  gproDatas_renderAnalysisDetail(gproDatas.analyses[idx]);
+  setTimeout(() => {
+    const el = document.getElementById('gd-analysis-detail');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
+function gproDatas_renderAnalysisDetail(analysis) {
+  const container = document.getElementById('gd-analysis-detail');
+  if (!container) return;
+  const d = analysis.data;
+  if (!d) { container.innerHTML = ''; return; }
+
+  const errors = (d.laps || []).filter(r => r[7] && r[7].toLowerCase().includes('erreur')).length;
+
+  let html = `<div class="section-label">Détail — ${d.title || 'Analyse'}</div>`;
+
+  // ── Stats bar ──
+  html += `
+  <div class="calc-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.4rem;">
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Tours</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:#3b9ef5;">${(d.laps||[]).length}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Arrêts stands</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:var(--accent2);">${(d.pitStops||[]).length}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Erreurs</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:${errors>0?'#e74c3c':'#2ecc71'};">${errors}</div></div>
+    <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Carburant départ</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:#f1c40f;">${d.fuelStart || '—'}</div></div>
+  </div>`;
+
+  // ── Réglages + Énergie ──
+  if (d.setup || d.energy) {
+    html += `<div class="calc-grid" style="grid-template-columns:2fr 1fr;margin-bottom:1.4rem;">`;
+    if (d.setup) {
+      html += `
+      <div class="calc-card">
+        <div class="card-title"><span class="tag">🔧</span> Réglages utilisés</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.8rem;">
+          ${[['Ail. AV', d.setup.aav], ['Ail. AR', d.setup.aar], ['Moteur', d.setup.mot], ['Freins', d.setup.fre], ['B.V.', d.setup.bv], ['Susp.', d.setup.susp]].map(([label,val]) => `
+            <div style="text-align:center;">
+              <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.3rem;">${label}</div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:1.3rem;font-weight:700;color:var(--text);">${val ?? '—'}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }
+    if (d.energy) {
+      html += `
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">⚡ Énergie pilote</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:1.4rem;font-weight:700;color:#9b59b6;">${d.energy}</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Risques ──
+  if (d.risks) {
+    const rLabels = ['Dépassement','Défense','Sec et dégagé','Mouillé','Disfonctionnement'];
+    html += `
+    <div class="calc-card fadein" style="margin-bottom:1.4rem;">
+      <div class="card-title"><span class="tag">🎲</span> Risques utilisés</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.6rem;">
+        ${rLabels.map((l, i) => `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem 1rem;text-align:center;">
+            <div style="font-size:.65rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">${l}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;color:var(--text);">${d.risks[i] ?? '—'}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── Usure des pièces ──
+  if (d.wearStart || d.wearEnd) {
+    const wCols = ['Cha.','Mot.','A.Av.','A.Ar.','F.P.','P.L.','Refr.','B.V.','Fre.','Susp.','Elec.'];
+    const wearRow = (label, arr, color) => arr ? `
+      <div style="display:grid;grid-template-columns:140px repeat(${wCols.length},1fr);align-items:center;border-bottom:1px solid var(--border);">
+        <div style="padding:.5rem .8rem;font-size:.75rem;color:var(--muted);">${label}</div>
+        ${wCols.map((_, i) => `<div style="padding:.5rem .4rem;text-align:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:${color};">${arr[i] ?? '—'}</div>`).join('')}
+      </div>` : '';
+    html += `
+    <div class="calc-card fadein" style="margin-bottom:1.4rem;padding:0;overflow-x:auto;">
+      <div style="padding:1rem 1.2rem .5rem;"><div class="card-title" style="margin:0;"><span class="tag">🛠️</span> Usure des pièces</div></div>
+      <div style="min-width:820px;">
+        <div style="display:grid;grid-template-columns:140px repeat(${wCols.length},1fr);border-bottom:2px solid rgba(59,158,245,.2);">
+          <div></div>
+          ${wCols.map(c => `<div style="padding:.4rem;text-align:center;font-family:'Rajdhani',sans-serif;font-size:.65rem;font-weight:700;color:#3b9ef5;">${c}</div>`).join('')}
+        </div>
+        ${wearRow('Niveau', d.wearLevel, 'var(--text)')}
+        ${wearRow('Usure départ (%)', d.wearStart, '#2ecc71')}
+        ${wearRow('Usure arrivée (%)', d.wearEnd, '#e74c3c')}
+      </div>
+    </div>`;
+  }
+
+  // ── Relais / Stints ──
+  if (d.stints && d.stints.length) {
+    html += `
+    <div class="calc-card fadein" style="margin-bottom:1.4rem;padding:0;overflow:hidden;">
+      <div style="padding:1rem 1.2rem .5rem;"><div class="card-title" style="margin:0;"><span class="tag">🔄</span> Relais (moyennes météo par segment)</div></div>
+      <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr 1fr;border-bottom:2px solid rgba(59,158,245,.2);background:rgba(59,158,245,.05);">
+        ${['#','Tours','Météo','Pneu','Temp. moy.','Hum. moy.'].map(h => `<div style="padding:.5rem .7rem;font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3b9ef5;text-align:center;">${h}</div>`).join('')}
+      </div>
+      ${d.stints.map((s, i) => `
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};">
+          <div style="padding:.5rem .7rem;text-align:center;font-family:'Rajdhani',sans-serif;font-weight:700;color:#3b9ef5;">${s.idx}</div>
+          <div style="padding:.5rem .7rem;text-align:center;">${s.tours}</div>
+          <div style="padding:.5rem .7rem;text-align:center;">${s.meteo}</div>
+          <div style="padding:.5rem .7rem;text-align:center;">${s.pneu}</div>
+          <div style="padding:.5rem .7rem;text-align:center;">${s.avgTemp}°</div>
+          <div style="padding:.5rem .7rem;text-align:center;">${s.avgHum}%</div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ── Arrêts stands ──
+  if (d.pitStops && d.pitStops.length) {
+    html += `
+    <div class="calc-card fadein" style="margin-bottom:1.4rem;padding:0;overflow:hidden;">
+      <div style="padding:1rem 1.2rem .5rem;"><div class="card-title" style="margin:0;"><span class="tag">🔧</span> Arrêts aux stands</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1.6fr 1fr 1fr 1fr 1fr;border-bottom:2px solid rgba(232,82,42,.2);background:rgba(232,82,42,.05);">
+        ${['Stand','Raison','Pneus (%)','Carb. restant (%)','Carb. après (L)','Temps (s)'].map(h => `<div style="padding:.5rem .7rem;font-family:'Rajdhani',sans-serif;font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent2);text-align:center;">${h}</div>`).join('')}
+      </div>
+      ${d.pitStops.map((p, i) => `
+        <div style="display:grid;grid-template-columns:1fr 1.6fr 1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border);background:${i%2===0?'transparent':'rgba(255,255,255,.02)'};">
+          ${[p[0], p[1], p[2], p[3], p[4], p[5]].map(v => `<div style="padding:.5rem .7rem;text-align:center;font-size:.82rem;">${v || '—'}</div>`).join('')}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ── État final ──
+  if (d.finalTires || d.finalFuel) {
+    html += `
+    <div class="calc-grid" style="grid-template-columns:1fr 1fr;margin-bottom:1.4rem;">
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">🔴 Pneus en fin de course</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2rem;font-weight:700;color:${d.finalTires<20?'#e74c3c':d.finalTires<40?'#e67e22':'#2ecc71'};">${d.finalTires ? d.finalTires+'%' : '—'}</div>
+      </div>
+      <div class="calc-card" style="text-align:center;">
+        <div class="card-title" style="justify-content:center;">⛽ Carburant restant</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:2rem;font-weight:700;color:#3b9ef5;">${d.finalFuel ? d.finalFuel+' L' : '—'}</div>
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
 }
 
 function gproDatas_buildCircuitInfoHTML(t) {
