@@ -4495,280 +4495,384 @@ function ga_gt(el) {
 }
 
 // ── Main parser (logique inchangée, juste renommée en ga_) ──────────────────
+// ── Valeur la plus fréquente d'un tableau (utilisé pour les relais) ──
+function ga_mostFrequent(arr) {
+  const freq = {};
+  arr.forEach(v => freq[v] = (freq[v] || 0) + 1);
+  return Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+}
+
+// ── Calcule les relais (stints) à partir des tours et des arrêts aux stands ──
+// laps : tableau [tour, chrono, pos, pneus, meteo, temp, hum, events] (celui produit par ga_parseHtmlString)
+// pitStops : tableau [stand, raison, pneuEtat, carbPct, carbApr, temps, tour] (le 7e élément = tour de l'arrêt)
+function ga_computeStints(laps, pitStops) {
+  const lapsNum = laps.map(l => ({
+    tour: parseInt(l[0]),
+    meteo: l[4],
+    temp: parseFloat(l[5]) || 0,
+    hum: parseFloat(l[6]) || 0,
+    pneus: l[3]
+  }));
+  const pitTours = (pitStops || []).map(p => p[6]).filter(t => t !== null && t !== undefined);
+  const lastTour = lapsNum.length > 0 ? lapsNum[lapsNum.length - 1].tour : 0;
+
+  const stints = [];
+  let prev = 0;
+  [...pitTours, lastTour].forEach((endTour, idx) => {
+    const sl = lapsNum.filter(l => l.tour > prev && l.tour <= endTour);
+    const avgTemp = sl.length ? (sl.reduce((s, l) => s + l.temp, 0) / sl.length).toFixed(1) : '-';
+    const avgHum  = sl.length ? (sl.reduce((s, l) => s + l.hum, 0) / sl.length).toFixed(1) : '-';
+    const meteoMode = sl.length ? ga_mostFrequent(sl.map(l => l.meteo)) : '-';
+    const pneuMode   = sl.length ? ga_mostFrequent(sl.map(l => l.pneus).filter(Boolean)) : '-';
+    stints.push({ idx: idx + 1, tours: `${prev + 1}–${endTour}`, avgTemp, avgHum, meteo: meteoMode, pneu: pneuMode });
+    prev = endTour;
+  });
+  return stints;
+}
+
+// ── Parseur pur : prend le HTML brut d'une page RaceAnalysis.asp et retourne les données extraites ──
+// Ne touche à AUCUN élément du DOM de la page (pas de document.getElementById) : réutilisable partout.
+// Lève une erreur (throw) en cas de structure introuvable, à catcher par l'appelant.
+function ga_parseHtmlString(raw) {
+  if (!raw || !raw.trim()) throw new Error("HTML vide.");
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(raw, 'text/html');
+
+  // ── 1. TITLE ──
+  let title = '';
+  const h1 = doc.querySelector('h1.block.center');
+  if (h1) {
+    const h1text = ga_gt(h1);
+    const m = h1text.match(/:\s*(.+?)\s*-\s*(Saison\s*\d+)\s*-\s*(Course\s*\d+)/i);
+    if (m) title = m[1].trim() + ', ' + m[2].trim().replace('Saison','Saison') + ' - ' + m[3].trim();
+    else title = h1text.replace('Analyse de la course:', '').trim();
+  }
+  if (!title) {
+    const titleTag = doc.querySelector('title');
+    if (titleTag) {
+      const t = ga_gt(titleTag);
+      const m = t.match(/Saison\s*(\d+)\s*-\s*Course\s*(\d+)\s*-\s*(.+?)\s*-\s*Grand/i);
+      if (m) title = m[3].trim() + ', Saison ' + m[1] + ' - Course ' + m[2];
+      else title = t.split(' - ').slice(1,4).join(', ');
+    }
+  }
+  if (!title) {
+    // Repli : format des .xls déjà générés par ce site (bouton "Télécharger" de l'outil Analyse de course) —
+    // le titre est dans la toute première cellule <b>, seule dans son tableau (colspan="8").
+    const firstCell = doc.querySelector('table td[colspan="8"] b, table td b');
+    if (firstCell) title = ga_gt(firstCell);
+  }
+
+  // ── 2. LAPS TABLE ──
+  let lapsTable = null;
+  const allTables = doc.querySelectorAll('table');
+  for (const t of allTables) {
+    const stepEl = t.querySelector('[data-step="3"]');
+    if (stepEl) { lapsTable = t; break; }
+    const firstTr = t.querySelector('tr');
+    if (firstTr) {
+      const htext = ga_gt(firstTr);
+      if (htext.includes('Tour') && htext.includes('Chrono') && htext.includes('Pneus')) {
+        lapsTable = t; break;
+      }
+    }
+  }
+
+  if (!lapsTable) {
+    throw new Error("Tableau des tours introuvable. Vérifiez que vous avez bien copié la page RaceAnalysis.asp complète.");
+  }
+
+  const allRows = Array.from(lapsTable.querySelectorAll('tr'));
+  let headerIdx = 0;
+  for (let i = 0; i < allRows.length; i++) {
+    const txt = ga_gt(allRows[i]);
+    if (txt.includes('Tour') && txt.includes('Chrono')) { headerIdx = i; break; }
+  }
+
+  const laps = [];
+  for (let i = headerIdx + 1; i < allRows.length; i++) {
+    const row = allRows[i];
+    const cells = Array.from(row.querySelectorAll('td'));
+    if (cells.length < 7) continue;
+
+    const tourCell = cells[0].cloneNode(true);
+    tourCell.querySelectorAll('sup').forEach(s => s.remove());
+    const tour = ga_gt(tourCell).replace(/[^\d-]/g, '') || ga_gt(tourCell);
+
+    const chrono = ga_gt(cells[1]);
+    const pos = ga_gt(cells[2]);
+    const pneus = ga_gt(cells[3]);
+    const meteo = ga_gt(cells[4]);
+    const temp = ga_gt(cells[5]).replace('°', '').replace('°C','').trim();
+    const hum = ga_gt(cells[6]).replace('%', '').trim();
+
+    let events = '-';
+    if (cells[7]) {
+      const evText = ga_gt(cells[7]);
+      events = evText || '-';
+    }
+
+    if (tour === '' || isNaN(parseInt(tour))) continue;
+
+    laps.push([tour, chrono, pos, pneus, meteo, temp, hum, events]);
+  }
+
+  if (laps.length === 0) {
+    throw new Error("Aucun tour trouvé dans le tableau. La structure HTML est peut-être différente.");
+  }
+
+  // ── 3. RISKS ──
+  let risks = null;
+  for (const t of allTables) {
+    const txt = ga_gt(t);
+    if (!txt.includes('Dépassement') && !txt.includes('Depassement')) continue;
+    if (!txt.includes('Défense') && !txt.includes('Defense')) continue;
+
+    const trs = Array.from(t.querySelectorAll('tr'));
+    for (let i = trs.length - 1; i >= 0; i--) {
+      const cells = Array.from(trs[i].querySelectorAll('td'));
+      const vals = cells.map(c => ga_gt(c)).filter(v => v && /^\d+$/.test(v.trim()));
+      if (vals.length >= 4) {
+        const allVals = cells.map(c => ga_gt(c));
+        risks = allVals;
+        break;
+      }
+    }
+    if (risks) break;
+  }
+
+  // ── 4. ENERGY ──
+  let energyBefore = '', energyAfter = '';
+  for (const t of allTables) {
+    const txt = ga_gt(t);
+    if (!txt.includes('nergie du pilote')) continue;
+
+    const labels = Array.from(t.querySelectorAll('.barLabel'));
+    if (labels.length >= 6) {
+      energyBefore = labels[4].textContent.trim();
+      energyAfter  = labels[5].textContent.trim();
+    } else if (labels.length >= 2) {
+      energyBefore = labels[labels.length-2].textContent.trim();
+      energyAfter  = labels[labels.length-1].textContent.trim();
+    } else {
+      // Repli : format généré par ce site — pas de barres, juste "99% > 51%" en texte direct
+      const txtAll = ga_gt(t);
+      const m = txtAll.match(/(\d+\s*%)\s*>\s*(\d+\s*%)/);
+      if (m) { energyBefore = m[1]; energyAfter = m[2]; }
+    }
+    break;
+  }
+  const energy = (energyBefore && energyAfter) ? energyBefore + ' > ' + energyAfter : '';
+
+  // ── 5. SETUP ──
+  let setup = null;
+  for (const t of allTables) {
+    const txt = ga_gt(t);
+    if (!txt.includes('glage') || !txt.includes('utilis')) continue;
+    if (!txt.includes('A.Av') && !txt.includes('Aileron')) continue;
+
+    const trs = Array.from(t.querySelectorAll('tr'));
+    for (const tr of trs) {
+      const cells = Array.from(tr.querySelectorAll('td'));
+      if (cells.length < 2) continue;
+      const firstCell = ga_gt(cells[0]).toLowerCase();
+      if (firstCell === 'course') {
+        setup = {
+          aav:   ga_gt(cells[1]),
+          aar:   ga_gt(cells[2]),
+          mot:   ga_gt(cells[3]),
+          fre:   ga_gt(cells[4]),
+          bv:    ga_gt(cells[5]),
+          susp:  ga_gt(cells[6])
+        };
+        break;
+      }
+    }
+    if (!setup) {
+      // Repli : format généré par ce site — pas de libellé "Course", juste une ligne d'en-têtes
+      // (Aileron avant / Aileron arrière / Moteur / Freins / B.V. / Suspension) suivie d'une ligne de 6 valeurs.
+      for (let i = 0; i < trs.length; i++) {
+        const headCells = Array.from(trs[i].querySelectorAll('td'));
+        const headTxt = headCells.map(c => ga_gt(c));
+        if (headTxt.length === 6 && headTxt[0].includes('Aileron avant') && headTxt[2].includes('Moteur')) {
+          const dataCells = Array.from((trs[i+1] || { querySelectorAll: () => [] }).querySelectorAll('td'));
+          if (dataCells.length === 6) {
+            setup = {
+              aav: ga_gt(dataCells[0]), aar: ga_gt(dataCells[1]), mot: ga_gt(dataCells[2]),
+              fre: ga_gt(dataCells[3]), bv:  ga_gt(dataCells[4]), susp: ga_gt(dataCells[5])
+            };
+          }
+          break;
+        }
+      }
+    }
+    if (setup) break;
+  }
+
+  // ── 6. WEAR ──
+  let wearLevel = null, wearStart = null, wearEnd = null;
+  for (const t of allTables) {
+    const txt = ga_gt(t);
+    if (!txt.includes('Niveau des pi') && !txt.includes('niveau des pi')) continue;
+    if (!txt.includes('Usure')) continue;
+
+    const trs = Array.from(t.querySelectorAll('tr'));
+
+    function nextValueRow(startIdx) {
+      for (let j = startIdx; j < trs.length; j++) {
+        const tds = Array.from(trs[j].querySelectorAll('td'));
+        if (tds.length < 11) continue;
+        const vals = tds.map(c => ga_gt(c).replace('%','').trim());
+        const isDataRow = vals.every(v => v === '' || /^\d+$/.test(v));
+        if (isDataRow) return vals;
+      }
+      return null;
+    }
+
+    // Extrait les 11 dernières valeurs numériques d'une ligne qui contient à la fois
+    // le libellé (1res cellules, souvent colspan) ET les données (format généré par ce site).
+    function sameRowValues(rowIdx) {
+      const tds = Array.from(trs[rowIdx].querySelectorAll('td'));
+      const numeric = tds.map(c => ga_gt(c).replace('%','').trim()).filter(v => v === '' || /^\d+$/.test(v));
+      return numeric.length >= 11 ? numeric.slice(-11) : null;
+    }
+
+    for (let i = 0; i < trs.length; i++) {
+      // Libellé de ligne : peut être un <th>, ou un <td><b> (format généré par ce site)
+      const headerCells = Array.from(trs[i].querySelectorAll('th'));
+      const rowLabel = headerCells.length > 0
+        ? headerCells.map(th => ga_gt(th)).join(' ')
+        : ga_gt(trs[i].querySelector('td'));
+
+      if (rowLabel.includes('Niveau des')) {
+        wearLevel = headerCells.length > 0 ? nextValueRow(i + 1) : sameRowValues(i);
+      } else if (rowLabel.includes('part') && rowLabel.includes('sure')) {
+        wearStart = headerCells.length > 0 ? nextValueRow(i + 1) : sameRowValues(i);
+        if (wearStart) wearStart = wearStart.map(v => v.replace('%','').trim());
+      } else if ((rowLabel.includes('arriv') || rowLabel.includes('Arriv')) && rowLabel.includes('sure')) {
+        wearEnd = headerCells.length > 0 ? nextValueRow(i + 1) : sameRowValues(i);
+        if (wearEnd) wearEnd = wearEnd.map(v => v.replace('%','').trim());
+      }
+    }
+    if (wearLevel || wearStart) break;
+  }
+
+  // ── 7. FUEL START ──
+  let fuelStart = '';
+  const bodyText = doc.body ? doc.body.innerHTML : raw;
+  const fuelMatch = bodyText.match(/Carburant au d[ée]part[^<:]*:\s*<[^>]*>?\s*(\d+)\s*&?nbsp?;?litres/i)
+                 || bodyText.match(/Carburant au d[ée]part[^<:]*:\s*(\d+)\s*(?:&nbsp;)?litres/i);
+  if (fuelMatch) fuelStart = fuelMatch[1];
+  if (!fuelStart) {
+    for (const t of allTables) {
+      const txt = ga_gt(t);
+      if (txt.includes('Carburant au d')) {
+        const trs = Array.from(t.querySelectorAll('tr'));
+        for (const tr of trs) {
+          const trtxt = ga_gt(tr);
+          if (trtxt.includes('Carburant au d')) {
+            const cells = Array.from(tr.querySelectorAll('td'));
+            if (cells.length >= 2) { fuelStart = ga_gt(cells[1]).replace('litres','').trim(); break; }
+          }
+        }
+        if (fuelStart) break;
+      }
+    }
+  }
+
+  // ── 8. PIT STOPS (avec extraction du numéro de tour, nécessaire pour les relais) ──
+  let pitStops = [];
+  for (const t of allTables) {
+    const txt = ga_gt(t);
+    if (!txt.includes('Etat des pneus') && !txt.includes('État des pneus')) continue;
+    if (!txt.includes('Carburant')) continue;
+    if (!txt.includes('Arr')) continue;
+
+    const trs = Array.from(t.querySelectorAll('tr'));
+    for (let i = 1; i < trs.length; i++) {
+      const cells = Array.from(trs[i].querySelectorAll('td'));
+      if (cells.length < 4) continue;
+      const firstTxt = ga_gt(cells[0]);
+      if (!firstTxt.match(/Arr[eê]t\s*\d/i)) continue;
+
+      const stand   = firstTxt.replace(/\s+/g,' ').replace('&nbsp;',' ').trim();
+      const raison  = ga_gt(cells[1]);
+      const pneuEtat= ga_gt(cells[2]).replace('%','').trim();
+      const carbPct = ga_gt(cells[3]).replace('%','').trim();
+      const carbApr = ga_gt(cells[4]);
+      const temps   = ga_gt(cells[5]);
+      const tourMatch = stand.match(/Tour\s*(\d+)/i);
+      const tour = tourMatch ? parseInt(tourMatch[1]) : null;
+
+      pitStops.push([stand, raison, pneuEtat, carbPct, carbApr, temps, tour]);
+    }
+    if (pitStops.length > 0) break;
+  }
+
+  // ── 9. FINAL STATE ──
+  let finalTires = '', finalFuel = '';
+  if (doc.body) {
+    const paras = Array.from(doc.body.querySelectorAll('p'));
+    for (const p of paras) {
+      const txt = ga_gt(p);
+      if (txt.includes('pneus') && txt.includes('fin de la course')) {
+        const m = txt.match(/(\d+)\s*%/);
+        if (m) finalTires = m[1];
+      }
+      if (txt.includes('Carburant') && txt.includes('fin de course')) {
+        const m = txt.match(/(\d+)\s*litres/);
+        if (m) finalFuel = m[1];
+      }
+    }
+  }
+  // Repli : mêmes infos, mais dans un <table> (format généré par ce site) plutôt que dans des <p>
+  if (!finalTires || !finalFuel) {
+    for (const t of allTables) {
+      const trs = Array.from(t.querySelectorAll('tr'));
+      for (const tr of trs) {
+        const cells = Array.from(tr.querySelectorAll('td'));
+        if (cells.length < 2) continue;
+        const label = ga_gt(cells[0]);
+        if (!finalTires && label.includes('pneus') && label.includes('fin de la course')) {
+          const m = ga_gt(cells[1]).match(/(\d+)/);
+          if (m) finalTires = m[1];
+        }
+        if (!finalFuel && label.includes('Carburant') && label.includes('fin de course')) {
+          const m = ga_gt(cells[1]).match(/(\d+)/);
+          if (m) finalFuel = m[1];
+        }
+      }
+    }
+  }
+  if (!finalTires) {
+    const m = raw.match(/pneus[^<]*fin de la course[^<]*<[^>]*>\s*(\d+)/i)
+            || raw.match(/pneus.*?fin.*?(\d+)\s*%/i);
+    if (m) finalTires = m[1];
+  }
+  if (!finalFuel) {
+    const m = raw.match(/Carburant restant en fin de course[^<]*<[^>]*>\s*(\d+)/i)
+            || raw.match(/Carburant restant en fin.*?(\d+)\s*litres/i);
+    if (m) finalFuel = m[1];
+  }
+
+  // ── 10. RELAIS (STINTS) ──
+  const stints = ga_computeStints(laps, pitStops);
+
+  return { title, laps, risks, energy, setup, wearLevel, wearStart, wearEnd, fuelStart, pitStops, finalTires, finalFuel, stints };
+}
+
+// ── Wrapper UI : lit le textarea de l'outil "Analyse de course", appelle le parseur pur, met à jour le DOM ──
 function ga_parse() {
   const raw = document.getElementById('ga-html-input').value.trim();
   if (!raw) { ga_showStatus('err', "Collez d'abord le HTML de la page d'analyse."); return; }
 
   try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(raw, 'text/html');
-
-    // ── 1. TITLE ──
-    let title = '';
-    const h1 = doc.querySelector('h1.block.center');
-    if (h1) {
-      const h1text = ga_gt(h1);
-      const m = h1text.match(/:\s*(.+?)\s*-\s*(Saison\s*\d+)\s*-\s*(Course\s*\d+)/i);
-      if (m) title = m[1].trim() + ', ' + m[2].trim().replace('Saison','Saison') + ' - ' + m[3].trim();
-      else title = h1text.replace('Analyse de la course:', '').trim();
-    }
-    if (!title) {
-      const titleTag = doc.querySelector('title');
-      if (titleTag) {
-        const t = ga_gt(titleTag);
-        const m = t.match(/Saison\s*(\d+)\s*-\s*Course\s*(\d+)\s*-\s*(.+?)\s*-\s*Grand/i);
-        if (m) title = m[3].trim() + ', Saison ' + m[1] + ' - Course ' + m[2];
-        else title = t.split(' - ').slice(1,4).join(', ');
-      }
-    }
-
-    // ── 2. LAPS TABLE ──
-    let lapsTable = null;
-    const allTables = doc.querySelectorAll('table');
-    for (const t of allTables) {
-      const stepEl = t.querySelector('[data-step="3"]');
-      if (stepEl) { lapsTable = t; break; }
-      const firstTr = t.querySelector('tr');
-      if (firstTr) {
-        const htext = ga_gt(firstTr);
-        if (htext.includes('Tour') && htext.includes('Chrono') && htext.includes('Pneus')) {
-          lapsTable = t; break;
-        }
-      }
-    }
-
-    if (!lapsTable) {
-      ga_showStatus('err', "Tableau des tours introuvable. Vérifiez que vous avez bien copié la page RaceAnalysis.asp complète.");
-      return;
-    }
-
-    const allRows = Array.from(lapsTable.querySelectorAll('tr'));
-    let headerIdx = 0;
-    for (let i = 0; i < allRows.length; i++) {
-      const txt = ga_gt(allRows[i]);
-      if (txt.includes('Tour') && txt.includes('Chrono')) { headerIdx = i; break; }
-    }
-
-    const laps = [];
-    for (let i = headerIdx + 1; i < allRows.length; i++) {
-      const row = allRows[i];
-      const cells = Array.from(row.querySelectorAll('td'));
-      if (cells.length < 7) continue;
-
-      const tourCell = cells[0].cloneNode(true);
-      tourCell.querySelectorAll('sup').forEach(s => s.remove());
-      const tour = ga_gt(tourCell).replace(/[^\d-]/g, '') || ga_gt(tourCell);
-
-      const chrono = ga_gt(cells[1]);
-      const pos = ga_gt(cells[2]);
-      const pneus = ga_gt(cells[3]);
-      const meteo = ga_gt(cells[4]);
-      const temp = ga_gt(cells[5]).replace('°', '').replace('°C','').trim();
-      const hum = ga_gt(cells[6]).replace('%', '').trim();
-
-      let events = '-';
-      if (cells[7]) {
-        const evText = ga_gt(cells[7]);
-        events = evText || '-';
-      }
-
-      if (tour === '' || isNaN(parseInt(tour))) continue;
-
-      laps.push([tour, chrono, pos, pneus, meteo, temp, hum, events]);
-    }
-
-    if (laps.length === 0) {
-      ga_showStatus('err', "Aucun tour trouvé dans le tableau. La structure HTML est peut-être différente.");
-      return;
-    }
-
-    // ── 3. RISKS ──
-    let risks = null;
-    for (const t of allTables) {
-      const txt = ga_gt(t);
-      if (!txt.includes('Dépassement') && !txt.includes('Depassement')) continue;
-      if (!txt.includes('Défense') && !txt.includes('Defense')) continue;
-
-      const trs = Array.from(t.querySelectorAll('tr'));
-      for (let i = trs.length - 1; i >= 0; i--) {
-        const cells = Array.from(trs[i].querySelectorAll('td'));
-        const vals = cells.map(c => ga_gt(c)).filter(v => v && /^\d+$/.test(v.trim()));
-        if (vals.length >= 4) {
-          const allVals = cells.map(c => ga_gt(c));
-          risks = allVals;
-          break;
-        }
-      }
-      if (risks) break;
-    }
-
-    // ── 4. ENERGY ──
-    let energyBefore = '', energyAfter = '';
-    for (const t of allTables) {
-      const txt = ga_gt(t);
-      if (!txt.includes('nergie du pilote')) continue;
-
-      const labels = Array.from(t.querySelectorAll('.barLabel'));
-      if (labels.length >= 6) {
-        energyBefore = labels[4].textContent.trim();
-        energyAfter  = labels[5].textContent.trim();
-      } else if (labels.length >= 2) {
-        energyBefore = labels[labels.length-2].textContent.trim();
-        energyAfter  = labels[labels.length-1].textContent.trim();
-      }
-      break;
-    }
-    const energy = (energyBefore && energyAfter) ? energyBefore + ' > ' + energyAfter : '';
-
-    // ── 5. SETUP ──
-    let setup = null;
-    for (const t of allTables) {
-      const txt = ga_gt(t);
-      if ((!txt.includes('glages utilis') && !txt.includes('Réglages')) ) continue;
-      if (!txt.includes('A.Av') && !txt.includes('Aileron')) continue;
-
-      const trs = Array.from(t.querySelectorAll('tr'));
-      for (const tr of trs) {
-        const cells = Array.from(tr.querySelectorAll('td'));
-        if (cells.length < 2) continue;
-        const firstCell = ga_gt(cells[0]).toLowerCase();
-        if (firstCell === 'course') {
-          setup = {
-            aav:   ga_gt(cells[1]),
-            aar:   ga_gt(cells[2]),
-            mot:   ga_gt(cells[3]),
-            fre:   ga_gt(cells[4]),
-            bv:    ga_gt(cells[5]),
-            susp:  ga_gt(cells[6])
-          };
-          break;
-        }
-      }
-      if (setup) break;
-    }
-
-    // ── 6. WEAR ──
-    let wearLevel = null, wearStart = null, wearEnd = null;
-    for (const t of allTables) {
-      const txt = ga_gt(t);
-      if (!txt.includes('Niveau des pi') && !txt.includes('niveau des pi')) continue;
-      if (!txt.includes('Usure')) continue;
-
-      const trs = Array.from(t.querySelectorAll('tr'));
-
-      function nextValueRow(startIdx) {
-        for (let j = startIdx; j < trs.length; j++) {
-          const tds = Array.from(trs[j].querySelectorAll('td'));
-          if (tds.length < 11) continue;
-          const vals = tds.map(c => ga_gt(c).replace('%','').trim());
-          const isDataRow = vals.every(v => v === '' || /^\d+$/.test(v));
-          if (isDataRow) return vals;
-        }
-        return null;
-      }
-
-      for (let i = 0; i < trs.length; i++) {
-        const ths = Array.from(trs[i].querySelectorAll('th'));
-        if (ths.length === 0) continue;
-        const thTxt = ths.map(th => ga_gt(th)).join(' ');
-
-        if (thTxt.includes('Niveau des')) {
-          wearLevel = nextValueRow(i + 1);
-        } else if (thTxt.includes('part') && thTxt.includes('sure')) {
-          wearStart = nextValueRow(i + 1);
-          if (wearStart) wearStart = wearStart.map(v => v.replace('%','').trim());
-        } else if ((thTxt.includes('arriv') || thTxt.includes('Arriv')) && thTxt.includes('sure')) {
-          wearEnd = nextValueRow(i + 1);
-          if (wearEnd) wearEnd = wearEnd.map(v => v.replace('%','').trim());
-        }
-      }
-      if (wearLevel || wearStart) break;
-    }
-
-    // ── 7. FUEL START ──
-    let fuelStart = '';
-    const bodyText = doc.body ? doc.body.innerHTML : raw;
-    const fuelMatch = bodyText.match(/Carburant au d[ée]part[^<:]*:\s*<[^>]*>?\s*(\d+)\s*&?nbsp?;?litres/i)
-                   || bodyText.match(/Carburant au d[ée]part[^<:]*:\s*(\d+)\s*(?:&nbsp;)?litres/i);
-    if (fuelMatch) fuelStart = fuelMatch[1];
-    if (!fuelStart) {
-      for (const t of allTables) {
-        const txt = ga_gt(t);
-        if (txt.includes('Carburant au d')) {
-          const trs = Array.from(t.querySelectorAll('tr'));
-          for (const tr of trs) {
-            const trtxt = ga_gt(tr);
-            if (trtxt.includes('Carburant au d')) {
-              const cells = Array.from(tr.querySelectorAll('td'));
-              if (cells.length >= 2) { fuelStart = ga_gt(cells[1]).replace('litres','').trim(); break; }
-            }
-          }
-          if (fuelStart) break;
-        }
-      }
-    }
-
-    // ── 8. PIT STOPS ──
-    let pitStops = [];
-    for (const t of allTables) {
-      const txt = ga_gt(t);
-      if (!txt.includes('Etat des pneus') && !txt.includes('État des pneus')) continue;
-      if (!txt.includes('Carburant')) continue;
-      if (!txt.includes('Arr')) continue;
-
-      const trs = Array.from(t.querySelectorAll('tr'));
-      for (let i = 1; i < trs.length; i++) {
-        const cells = Array.from(trs[i].querySelectorAll('td'));
-        if (cells.length < 4) continue;
-        const firstTxt = ga_gt(cells[0]);
-        if (!firstTxt.match(/Arr[eê]t\s*\d/i)) continue;
-
-        const stand   = firstTxt.replace(/\s+/g,' ').replace('&nbsp;',' ').trim();
-        const raison  = ga_gt(cells[1]);
-        const pneuEtat= ga_gt(cells[2]).replace('%','').trim();
-        const carbPct = ga_gt(cells[3]).replace('%','').trim();
-        const carbApr = ga_gt(cells[4]);
-        const temps   = ga_gt(cells[5]);
-
-        pitStops.push([stand, raison, pneuEtat, carbPct, carbApr, temps]);
-      }
-      if (pitStops.length > 0) break;
-    }
-
-    // ── 9. FINAL STATE ──
-    let finalTires = '', finalFuel = '';
-    if (doc.body) {
-      const paras = Array.from(doc.body.querySelectorAll('p'));
-      for (const p of paras) {
-        const txt = ga_gt(p);
-        if (txt.includes('pneus') && txt.includes('fin de la course')) {
-          const m = txt.match(/(\d+)\s*%/);
-          if (m) finalTires = m[1];
-        }
-        if (txt.includes('Carburant') && txt.includes('fin de course')) {
-          const m = txt.match(/(\d+)\s*litres/);
-          if (m) finalFuel = m[1];
-        }
-      }
-    }
-    if (!finalTires) {
-      const m = raw.match(/pneus[^<]*fin de la course[^<]*<[^>]*>\s*(\d+)/i)
-              || raw.match(/pneus.*?fin.*?(\d+)\s*%/i);
-      if (m) finalTires = m[1];
-    }
-    if (!finalFuel) {
-      const m = raw.match(/Carburant restant en fin de course[^<]*<[^>]*>\s*(\d+)/i)
-              || raw.match(/Carburant restant en fin.*?(\d+)\s*litres/i);
-      if (m) finalFuel = m[1];
-    }
-
-    ga_raceData = { title, laps, risks, energy, setup, wearLevel, wearStart, wearEnd, fuelStart, pitStops, finalTires, finalFuel };
-
+    ga_raceData = ga_parseHtmlString(raw);
     ga_renderPreview();
-    ga_showStatus('ok', `✓ ${laps.length} tours extraits — "${title}"`);
+    ga_showStatus('ok', `✓ ${ga_raceData.laps.length} tours extraits — "${ga_raceData.title}"`);
     document.getElementById('ga-preview-step').style.display = '';
     document.getElementById('ga-download-step').style.display = '';
-
   } catch(e) {
     ga_showStatus('err', 'Erreur de parsing : ' + e.message);
     console.error(e);
