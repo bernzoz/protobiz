@@ -5464,6 +5464,8 @@ function gproDatas_renderAnalysisDetail(analysis) {
     <div class="calc-card" style="text-align:center;"><div class="card-title" style="justify-content:center;">Carburant départ</div><div style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700;color:#f1c40f;">${d.fuelStart || '—'}</div></div>
   </div>`;
 
+  html += gproDatas_buildKeyFiguresHTML(gproDatas_computeKeyFigures(d));
+  
   // ── Réglages + Énergie ──
   if (d.setup || d.energy) {
     html += `<div class="calc-grid" style="grid-template-columns:2fr 1fr;margin-bottom:1.4rem;">`;
@@ -5582,6 +5584,106 @@ function gproDatas_renderAnalysisDetail(analysis) {
   container.innerHTML = html;
 }
 
+function gproDatas_computeKeyFigures(d) {
+  const wCols = ['Cha.','Mot.','A.Av.','A.Ar.','F.P.','P.L.','Refr.','B.V.','Fre.','Susp.','Elec.'];
+  const stints = d.stints || [];
+  const pitStops = d.pitStops || [];
+  const fig = { fuelAvgPerLap: null, fuelPerStint: [], tirePerStint: [], partsWear: [], energyPerLap: null };
+  if (!stints.length) return fig;
+
+  const lastParts = stints[stints.length - 1].tours.split('–');
+  const totalLaps = parseInt(lastParts[1]);
+
+  // Carburant
+  if (d.fuelStart !== '') {
+    let totalConsumed = 0, valid = true;
+    fig.fuelPerStint = stints.map((s, i) => {
+      const parts = s.tours.split('–');
+      const laps = parseInt(parts[1]) - parseInt(parts[0]) + 1;
+      const loaded = i === 0 ? parseFloat(d.fuelStart) : parseFloat(pitStops[i - 1]?.[4]);
+      const consumed = (i === stints.length - 1 && d.finalFuel !== '')
+        ? loaded - parseFloat(d.finalFuel) : loaded;
+      if (isNaN(consumed)) valid = false; else totalConsumed += consumed;
+      return { idx: s.idx, laps, value: (isNaN(consumed) || !laps) ? null : consumed / laps };
+    });
+    fig.fuelAvgPerLap = (valid && totalLaps) ? totalConsumed / totalLaps : null;
+  }
+
+  // Usure pneus
+  fig.tirePerStint = stints.map((s, i) => {
+    const parts = s.tours.split('–');
+    const laps = parseInt(parts[1]) - parseInt(parts[0]) + 1;
+    const remaining = (i === stints.length - 1)
+      ? parseFloat(d.finalTires) : parseFloat(pitStops[i]?.[2]);
+    const wear = 100 - remaining;
+    return { idx: s.idx, laps, value: (isNaN(wear) || !laps) ? null : wear / laps };
+  });
+
+  // Usure pièces
+  if (d.wearEnd && totalLaps) {
+    fig.partsWear = wCols.map((label, i) => {
+      const end = parseFloat(d.wearEnd[i]);
+      const start = d.wearStart ? (parseFloat(d.wearStart[i]) || 0) : 0;
+      return { label, value: isNaN(end) ? null : (end - start) / totalLaps };
+    });
+  }
+
+  // Énergie pilote
+  if (d.energy && totalLaps) {
+    const m = d.energy.match(/(\d+)\s*%\s*>\s*(\d+)\s*%/);
+    if (m) fig.energyPerLap = (parseFloat(m[2]) - parseFloat(m[1])) / totalLaps;
+  }
+
+  return fig;
+}
+
+function gproDatas_buildKeyFiguresHTML(fig) {
+  if (!fig) return '';
+  let html = `<div class="section-label">📊 Chiffres clés</div>`;
+  html += `<div class="calc-grid" style="grid-template-columns:1fr 1fr;margin-bottom:1.4rem;">`;
+  html += `<div class="calc-card">
+    <div class="card-title"><span class="tag">⛽</span> Consommation carburant</div>
+    <div style="text-align:center;margin-bottom:1rem;">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:2.2rem;font-weight:700;color:var(--accent2);">${fig.fuelAvgPerLap !== null ? fig.fuelAvgPerLap.toFixed(3) : '—'}</div>
+      <div style="font-size:.72rem;color:var(--muted);">L / tour (moyenne course)</div>
+    </div>
+    ${fig.fuelPerStint.length ? `<div style="display:flex;flex-direction:column;gap:.4rem;">
+      ${fig.fuelPerStint.map(s => `<div style="display:flex;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+        <span style="color:var(--muted);">Relais ${s.idx} (${s.laps} tours)</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--text);">${s.value !== null ? s.value.toFixed(3) + ' L/tour' : '—'}</span>
+      </div>`).join('')}</div>` : '<div class="no-data-msg">Données insuffisantes</div>'}
+  </div>`;
+  html += `<div class="calc-card">
+    <div class="card-title"><span class="tag">🔴</span> Usure pneus par relais</div>
+    ${fig.tirePerStint.length ? `<div style="display:flex;flex-direction:column;gap:.4rem;">
+      ${fig.tirePerStint.map(s => `<div style="display:flex;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:.5rem .8rem;font-size:.82rem;">
+        <span style="color:var(--muted);">Relais ${s.idx} (${s.laps} tours)</span>
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;color:var(--text);">${s.value !== null ? s.value.toFixed(2) + ' %/tour' : '—'}</span>
+      </div>`).join('')}</div>` : '<div class="no-data-msg">Données insuffisantes</div>'}
+  </div>`;
+  html += `</div>`;
+
+  html += `<div class="calc-grid" style="grid-template-columns:2fr 1fr;margin-bottom:1.4rem;">`;
+  html += `<div class="calc-card">
+    <div class="card-title"><span class="tag">🛠️</span> Usure théorique des pièces (par tour)</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.8rem;">
+      ${fig.partsWear.map(p => `<div style="text-align:center;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3b9ef5;margin-bottom:.3rem;">${p.label}</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text);">${p.value !== null ? p.value.toFixed(3) + '%' : '—'}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  html += `<div class="calc-card" style="text-align:center;">
+    <div class="card-title" style="justify-content:center;"><span class="tag">⚡</span> Énergie pilote</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:2rem;font-weight:700;color:${fig.energyPerLap !== null && fig.energyPerLap < 0 ? '#e74c3c' : '#9b59b6'};">
+      ${fig.energyPerLap !== null ? (fig.energyPerLap > 0 ? '+' : '') + fig.energyPerLap.toFixed(3) + '%' : '—'}
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;">par tour</div>
+  </div>`;
+  html += `</div>`;
+  return html;
+}
+  
 function gproDatas_buildCircuitInfoHTML(t) {
   const stats = [
     { label: '📏 Longueur course', val: t.dist + ' km', plain: true },
