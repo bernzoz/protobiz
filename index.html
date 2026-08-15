@@ -5382,7 +5382,7 @@ function gproDatas_selectCircuit(idx) {
     upZone.style.display = 'block';
     upZone.innerHTML = gproDatas_buildUploadHTML();
   }
-  gproDatas_loadAnalyses(trackId);
+  gproDatas_loadAnalyses(gproDatas_trackId(t));
 }
 
 async function gproDatas_loadAnalyses(trackId) {
